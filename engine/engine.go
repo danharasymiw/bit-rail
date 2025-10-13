@@ -3,7 +3,6 @@ package engine
 import (
 	"time"
 
-	"github.com/danharasymiw/trains/log"
 	"github.com/danharasymiw/trains/renderer"
 	"github.com/danharasymiw/trains/trains"
 	"github.com/danharasymiw/trains/types"
@@ -44,22 +43,19 @@ func (e *Engine) Run() {
 		e.r.Draw()
 
 		// Process all queued input (non-blocking)
-		for {
-			select {
-			case ev := <-events:
-				if _, ok := ev.(*tcell.EventKey); ok {
-					e.Running = false // quit on any key
-				}
-			default:
-				break
+		select {
+		case ev := <-events:
+			if _, ok := ev.(*tcell.EventKey); ok {
+				e.Running = false // quit on any key
 			}
+		default:
+			break
 		}
 	}
 }
 
 func (e *Engine) tick() {
 	for _, t := range e.w.Trains {
-		log.Log("TICK")
 		e.moveTrain(t)
 	}
 }

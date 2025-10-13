@@ -87,11 +87,5 @@ func main() {
 		150*time.Millisecond,
 	)
 	eng.Run()
-	// Event channel for keyboard
-
-	for { // game loop
-
-		// Keyboard events
-		time.Sleep(150 * time.Millisecond)
-	}
+	println("bye.")
 }
