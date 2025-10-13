@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	w := world.New(30, 30)
+	w := world.New(50, 50)
 
 	// Draw a simple world
 
@@ -70,6 +70,7 @@ func main() {
 	w.Tiles[9][15] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest}
 
 	w.Trains = append(w.Trains, &trains.Train{
+		IsMoving: true,
 		Cars: []*trains.TrainCar{
 			{Type: trains.CarTypeLocomotive, X: 13, Y: 12, Direction: types.DirEast},
 			{Type: trains.CarTypeCargo, X: 12, Y: 12, Direction: types.DirEast},

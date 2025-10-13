@@ -4,6 +4,7 @@ import "github.com/danharasymiw/trains/types"
 
 type Train struct {
 	IsReversing  bool
+	IsMoving     bool
 	Speed        int
 	Acceleration int
 

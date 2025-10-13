@@ -61,6 +61,10 @@ func (e *Engine) tick() {
 }
 
 func (e *Engine) moveTrain(t *trains.Train) {
+	if !t.IsMoving {
+		return
+	}
+
 	car := t.Cars[0]
 	if t.IsReversing {
 		car = t.Cars[len(t.Cars)-1]
