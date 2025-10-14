@@ -29,7 +29,7 @@ func (r *SimpleRenderer) Draw() {
 func (r *SimpleRenderer) drawWorld() {
 	for y, row := range r.w.Tiles {
 		for x, t := range row {
-			ch := getTileChar(t)
+			ch := r.getTileChar(t)
 			r.screen.SetContent(x, y, ch, nil, tcell.StyleDefault)
 		}
 	}
@@ -50,14 +50,15 @@ func (r *SimpleRenderer) drawWorld() {
 	}
 }
 
-func getTileChar(t types.Tile) rune {
+func (r *SimpleRenderer) getTileChar(t *types.Tile) rune {
 	switch t.Type {
 	case types.TileGrass:
 		return ' '
 	case types.TileWood:
 		return '🌲'
 	case types.TileTrack:
-		switch t.Orientation {
+		track := r.w.Tracks[t]
+		switch track.Direction {
 		case types.DirNorth | types.DirSouth:
 			return '║' // vertical
 		case types.DirEast | types.DirWest:

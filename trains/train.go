@@ -1,8 +1,12 @@
 package trains
 
-import "github.com/danharasymiw/trains/types"
+import (
+	"github.com/danharasymiw/trains/types"
+	"github.com/google/uuid"
+)
 
 type Train struct {
+	ID           uuid.UUID
 	IsReversing  bool
 	IsMoving     bool
 	Speed        int

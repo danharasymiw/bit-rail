@@ -59,6 +59,5 @@ func OppositeDir(d Dir) Dir {
 }
 
 type Tile struct {
-	Type        TileType
-	Orientation Dir
+	Type TileType
 }

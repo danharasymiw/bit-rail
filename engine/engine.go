@@ -61,23 +61,31 @@ func (e *Engine) tick() {
 }
 
 func (e *Engine) moveTrain(t *trains.Train) {
+	// TODO investigate if this function makes more sense to turn/figure out direction then move
+	// Currently we move, and then figure out out next direction
 	if !t.IsMoving {
 		return
 	}
 
 	car := t.Cars[0]
+	moveDir := car.Direction
 	if t.IsReversing {
 		car = t.Cars[len(t.Cars)-1]
+		moveDir = types.OppositeDir(car.Direction)
 	}
 
 	x, y, dir := car.X, car.Y, car.Direction
-	nextX, nextY := nextCarPos(x, y, dir)
+	nextX, nextY := nextPos(x, y, dir)
 	nextTile := e.w.TileAt(nextX, nextY)
 	if nextTile.Type != types.TileTrack {
 		return
 	}
 
-	e.moveCars(t.Cars, t.IsReversing)
+	if e.w.OccupiedAt(nextX, nextY) {
+		return
+	}
+
+	e.moveCars(t.Cars, moveDir, t.IsReversing)
 
 	car = t.Cars[0]
 	if t.IsReversing {
@@ -85,14 +93,14 @@ func (e *Engine) moveTrain(t *trains.Train) {
 		car.Direction = types.OppositeDir(car.Direction)
 	}
 	x, y, dir = car.X, car.Y, car.Direction
-	tile := e.w.TileAt(x, y)
+	track := e.w.Tracks[e.w.TileAt(x, y)]
 
 	incFrom := types.OppositeDir(dir)
-	if tile.Orientation&incFrom == 0 {
+	if track.Direction&incFrom == 0 {
 		return
 	}
 
-	outgoing := tile.Orientation & ^incFrom
+	outgoing := track.Direction & ^incFrom
 
 	if outgoing != 0 && (outgoing&(outgoing-1)) == 0 {
 		car.Direction = outgoing & -outgoing
@@ -111,7 +119,7 @@ func (e *Engine) moveTrain(t *trains.Train) {
 	}
 }
 
-func (e *Engine) moveCars(cars []*trains.TrainCar, reverse bool) {
+func (e *Engine) moveCars(cars []*trains.TrainCar, moveDir types.Dir, reverse bool) {
 	start, end, step := 0, len(cars), 1
 	if reverse {
 		start, end, step = len(cars)-1, -1, -1
@@ -119,12 +127,9 @@ func (e *Engine) moveCars(cars []*trains.TrainCar, reverse bool) {
 
 	car := cars[start]
 
-	newX, newY := nextCarPos(car.X, car.Y, car.Direction)
-	if e.w.OccupiedAt(newX, newY) {
-		return // blocked
-	}
+	newX, newY := nextPos(car.X, car.Y, moveDir)
 
-	prevX, prevY, prevDir := car.X, car.Y, car.Direction
+	prevX, prevY, prevDir := car.X, car.Y, moveDir
 	car.X, car.Y = newX, newY
 	e.w.SetOccupied(car.X, car.Y)
 
@@ -139,7 +144,7 @@ func (e *Engine) moveCars(cars []*trains.TrainCar, reverse bool) {
 	e.w.UnsetOccupied(prevX, prevY)
 }
 
-func nextCarPos(x, y int, dir types.Dir) (int, int) {
+func nextPos(x, y int, dir types.Dir) (int, int) {
 	switch dir {
 	case types.DirNorth:
 		return x, y - 1 // Think I'll have to reverse the Y to normal for actual client

@@ -20,23 +20,24 @@ func main() {
 	// First track
 	// Simple horizontal tracks
 	for x := 5; x <= 15; x++ {
-		w.Tiles[10][x] = types.Tile{Type: types.TileTrack, Orientation: types.DirEast | types.DirWest}
-		w.Tiles[7][x] = types.Tile{Type: types.TileTrack, Orientation: types.DirEast | types.DirWest}
+		w.AddTrack(x, 10, types.DirEast|types.DirWest)
+		w.AddTrack(x, 7, types.DirEast|types.DirWest)
 	}
 
 	// Vertical connections for the loop
 	for y := 7; y <= 10; y++ {
-		w.Tiles[y][5] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth}
-		w.Tiles[y][15] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth}
+		w.AddTrack(5, y, types.DirNorth|types.DirSouth)
+		w.AddTrack(15, y, types.DirNorth|types.DirSouth)
 	}
 
 	// Corners
-	w.Tiles[7][5] = types.Tile{Type: types.TileTrack, Orientation: types.DirSouth | types.DirEast}   // top-left
-	w.Tiles[7][15] = types.Tile{Type: types.TileTrack, Orientation: types.DirSouth | types.DirWest}  // top-right
-	w.Tiles[10][5] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirEast}  // bottom-left
-	w.Tiles[10][15] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirWest} // bottom-right
+	w.AddTrack(5, 7, types.DirSouth|types.DirEast)
+	w.AddTrack(15, 7, types.DirSouth|types.DirWest)
+	w.AddTrack(5, 10, types.DirNorth|types.DirEast)
+	w.AddTrack(15, 10, types.DirNorth|types.DirWest)
 
-	w.Trains = append(w.Trains, &trains.Train{
+	w.AddTrain(&trains.Train{
+		IsMoving: true,
 		Cars: []*trains.TrainCar{
 			{Type: trains.CarTypeLocomotive, X: 9, Y: 10, Direction: types.DirWest},
 			{Type: trains.CarTypeCargo, X: 10, Y: 10, Direction: types.DirWest},
@@ -49,25 +50,25 @@ func main() {
 
 	// Second track
 	for x := 10; x <= 17; x++ {
-		w.Tiles[12][x] = types.Tile{Type: types.TileTrack, Orientation: types.DirEast | types.DirWest}
-		w.Tiles[9][x] = types.Tile{Type: types.TileTrack, Orientation: types.DirEast | types.DirWest}
+		w.AddTrack(x, 12, types.DirEast|types.DirWest)
+		w.AddTrack(x, 9, types.DirEast|types.DirWest)
 	}
 
 	// Vertical connections for the loop
 	for y := 9; y <= 12; y++ {
-		w.Tiles[y][10] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth}
-		w.Tiles[y][17] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth}
+		w.AddTrack(10, y, types.DirNorth|types.DirSouth)
+		w.AddTrack(17, y, types.DirNorth|types.DirSouth)
 	}
 
 	// Corners
-	w.Tiles[9][10] = types.Tile{Type: types.TileTrack, Orientation: types.DirSouth | types.DirEast}  // top-left
-	w.Tiles[9][17] = types.Tile{Type: types.TileTrack, Orientation: types.DirSouth | types.DirWest}  // top-right
-	w.Tiles[12][10] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirEast} // bottom-left
-	w.Tiles[12][17] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirWest} // bottom-right
+	w.AddTrack(10, 9, types.DirSouth|types.DirEast)
+	w.AddTrack(17, 9, types.DirSouth|types.DirWest)
+	w.AddTrack(10, 12, types.DirNorth|types.DirEast)
+	w.AddTrack(17, 12, types.DirNorth|types.DirWest)
 
 	// Junctions
-	w.Tiles[10][10] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest}
-	w.Tiles[9][15] = types.Tile{Type: types.TileTrack, Orientation: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest}
+	w.AddTrack(10, 10, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
+	w.AddTrack(15, 9, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
 
 	w.Trains = append(w.Trains, &trains.Train{
 		IsMoving: true,
