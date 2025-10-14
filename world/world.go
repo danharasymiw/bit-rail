@@ -8,7 +8,7 @@ import (
 type World struct {
 	Width, Height int
 	Tiles         [][]*types.Tile
-	Tracks        map[*types.Tile]types.Track
+	Tracks        map[*types.Tile]*types.Track
 	Trains        []*trains.Train
 	Occupied      map[int]bool
 }
@@ -18,7 +18,7 @@ func New(width, height int) *World {
 		Width:    width,
 		Height:   height,
 		Tiles:    make([][]*types.Tile, 30),
-		Tracks:   make(map[*types.Tile]types.Track),
+		Tracks:   make(map[*types.Tile]*types.Track),
 		Trains:   make([]*trains.Train, 0),
 		Occupied: make(map[int]bool),
 	}
@@ -62,7 +62,7 @@ func (w *World) AddTrack(x, y int, dir types.Dir) *types.Track {
 		Tile:      tile,
 		Direction: dir,
 	}
-	w.Tracks[tile] = *track
+	w.Tracks[tile] = track
 
 	return track
 }
