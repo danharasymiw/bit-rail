@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	w := test_worlds.IntersectingLoopsTestWorld()
+	w := test_worlds.NewPerlinWorld(123, 123)
 	screen, _ := tcell.NewScreen()
 	screen.Init()
 	defer screen.Fini()

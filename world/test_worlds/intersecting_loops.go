@@ -73,5 +73,36 @@ func IntersectingLoopsTestWorld() *world.World {
 		},
 	})
 
+	// water
+	waterCoords := []struct{ x, y int }{
+		{35, 35},
+		{36, 35},
+		{37, 35},
+		{38, 35},
+		{39, 35},
+		{40, 35},
+		{41, 35},
+		{35, 36},
+		{36, 36},
+		{37, 36},
+		{38, 36},
+		{39, 36},
+		{40, 36},
+		{35, 37},
+		{36, 37},
+		{37, 37},
+		{38, 37},
+		{36, 38},
+		{37, 38},
+		{38, 38},
+		{39, 38},
+		{37, 39},
+		{38, 39},
+	}
+
+	for _, coord := range waterCoords {
+		w.Tiles[coord.y][coord.x] = &types.Tile{Type: types.TileWater}
+	}
+
 	return w
 }

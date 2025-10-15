@@ -29,8 +29,7 @@ func (r *SimpleRenderer) Draw() {
 func (r *SimpleRenderer) drawWorld() {
 	for y, row := range r.w.Tiles {
 		for x, t := range row {
-			ch, col := r.getTileChar(x, y, t)
-			style := tcell.StyleDefault.Foreground(col)
+			ch, style := r.getTileChar(x, y, t)
 			r.screen.SetContent(x, y, ch, nil, style)
 		}
 	}
@@ -45,29 +44,52 @@ func (r *SimpleRenderer) drawWorld() {
 }
 
 var (
-	grassChars  = []rune{'.', ',', '\'', '`', ':'}
+	grassChars  = []rune(".,'`:")
 	grassColors = []tcell.Color{
-		tcell.ColorGreen,
-		tcell.ColorDarkGreen,
-		tcell.ColorLime,
+		tcell.ColorYellowGreen,
+		tcell.ColorLightGreen,
+		tcell.ColorLawnGreen,
 	}
 
-	waterChars  = []rune{'~', '≈', '-', '`', '"'}
+	treeChars  = []rune("TtYy")
+	treeColors = []tcell.Color{
+		tcell.ColorDarkGreen,
+		tcell.ColorOliveDrab,
+		tcell.ColorForestGreen,
+	}
+
+	waterChars  = []rune("~≈-`")
 	waterColors = []tcell.Color{
 		tcell.ColorBlue,
-		tcell.ColorBlue,
 		tcell.ColorSteelBlue,
+		tcell.ColorDeepSkyBlue,
+	}
+
+	mountainChars  = []rune("^M")
+	mountainColors = []tcell.Color{
+		tcell.ColorSlateGray,
+		tcell.ColorDarkGray,
+		tcell.ColorDimGray,
 	}
 )
 
-func (r *SimpleRenderer) getTileChar(x, y int, t *types.Tile) (rune, tcell.Color) {
+func (r *SimpleRenderer) getTileChar(x, y int, t *types.Tile) (rune, tcell.Style) {
+	var ch rune
+	var fgCol tcell.Color
 	switch t.Type {
 	case types.TileGrass:
-		return grassChars[(x^y)%len(grassChars)], grassColors[(x^y)%len(grassColors)]
+		ch = grassChars[(x^y)%len(grassChars)]
+		fgCol = grassColors[(x^y)%len(grassColors)]
 	case types.TileWater:
-		return waterChars[(x^y)%len(grassChars)], waterColors[(x^y)%len(waterColors)]
-	case types.TileWood:
-		return 'x', tcell.ColorBrown
+		ch = waterChars[(x^y)%len(waterChars)]
+		fgCol = waterColors[(x^y)%len(waterColors)]
+	case types.TileTree:
+		ch = treeChars[(x^y)%len(treeChars)]
+		fgCol = treeColors[(x^y)%len(treeColors)]
+	case types.TileMountain:
+		ch = mountainChars[(x^y)%len(mountainChars)]
+		fgCol = mountainColors[(x^y)%len(mountainColors)]
+
 	case types.TileTrack:
 		var trackChar rune
 		track := r.w.Tracks[t]
@@ -97,9 +119,9 @@ func (r *SimpleRenderer) getTileChar(x, y int, t *types.Tile) (rune, tcell.Color
 		default:
 			trackChar = ' '
 		}
-		return trackChar, tcell.ColorGray
+		return trackChar, tcell.StyleDefault.Foreground(tcell.ColorGray)
 	}
-	return ' ', tcell.ColorRed
+	return ch, tcell.StyleDefault.Foreground(fgCol)
 }
 
 func (r *SimpleRenderer) getTrainCarChar(c *trains.TrainCar) (rune, tcell.Color) {
