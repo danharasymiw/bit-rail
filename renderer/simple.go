@@ -29,61 +29,88 @@ func (r *SimpleRenderer) Draw() {
 func (r *SimpleRenderer) drawWorld() {
 	for y, row := range r.w.Tiles {
 		for x, t := range row {
-			ch := r.getTileChar(t)
-			r.screen.SetContent(x, y, ch, nil, tcell.StyleDefault)
+			ch, col := r.getTileChar(x, y, t)
+			style := tcell.StyleDefault.Foreground(col)
+			r.screen.SetContent(x, y, ch, nil, style)
 		}
 	}
 
 	for _, t := range r.w.Trains {
 		for _, c := range t.Cars {
-			var ch rune
-			switch c.Type {
-			case trains.CarTypeLocomotive:
-				ch = 'L'
-			case trains.CarTypeCargo:
-				ch = 'C'
-			case trains.CarTypePassenger:
-				ch = 'C'
-			}
-			r.screen.SetContent(c.X, c.Y, ch, nil, tcell.StyleDefault)
+			ch, col := r.getTrainCarChar(c)
+			style := tcell.StyleDefault.Foreground(col)
+			r.screen.SetContent(c.X, c.Y, ch, nil, style)
 		}
 	}
 }
 
-func (r *SimpleRenderer) getTileChar(t *types.Tile) rune {
+var (
+	grassChars  = []rune{'.', ',', '\'', '`', ':'}
+	grassColors = []tcell.Color{
+		tcell.ColorGreen,
+		tcell.ColorDarkGreen,
+		tcell.ColorLime,
+	}
+
+	waterChars  = []rune{'~', '≈', '-', '`', '"'}
+	waterColors = []tcell.Color{
+		tcell.ColorBlue,
+		tcell.ColorBlue,
+		tcell.ColorSteelBlue,
+	}
+)
+
+func (r *SimpleRenderer) getTileChar(x, y int, t *types.Tile) (rune, tcell.Color) {
 	switch t.Type {
 	case types.TileGrass:
-		return ' '
+		return grassChars[(x^y)%len(grassChars)], grassColors[(x^y)%len(grassColors)]
+	case types.TileWater:
+		return waterChars[(x^y)%len(grassChars)], waterColors[(x^y)%len(waterColors)]
 	case types.TileWood:
-		return '🌲'
+		return 'x', tcell.ColorBrown
 	case types.TileTrack:
+		var trackChar rune
 		track := r.w.Tracks[t]
 		switch track.Direction {
 		case types.DirNorth | types.DirSouth:
-			return '║' // vertical
+			trackChar = '║' // vertical
 		case types.DirEast | types.DirWest:
-			return '═' // horizontal
+			trackChar = '═' // horizontal
 		case types.DirNorth | types.DirEast:
-			return '╚' // curve NE
+			trackChar = '╚' // curve NE
 		case types.DirNorth | types.DirWest:
-			return '╝' // curve NW
+			trackChar = '╝' // curve NW
 		case types.DirSouth | types.DirEast:
-			return '╔' // curve SE
+			trackChar = '╔' // curve SE
 		case types.DirSouth | types.DirWest:
-			return '╗' // curve SW
+			trackChar = '╗' // curve SW
 		case types.DirNorth | types.DirEast | types.DirWest:
-			return '╩' // T junction pointing up
+			trackChar = '╩' // T junction pointing up
 		case types.DirSouth | types.DirEast | types.DirWest:
-			return '╦' // T junction pointing down
+			trackChar = '╦' // T junction pointing down
 		case types.DirNorth | types.DirSouth | types.DirEast:
-			return '╠' // T junction pointing left
+			trackChar = '╠' // T junction pointing left
 		case types.DirNorth | types.DirSouth | types.DirWest:
-			return '╣' // T junction pointing right
+			trackChar = '╣' // T junction pointing right
 		case types.DirNorth | types.DirSouth | types.DirEast | types.DirWest:
-			return '╬' // cross
+			trackChar = '╬' // cross
+		default:
+			trackChar = ' '
 		}
+		return trackChar, tcell.ColorGray
 	}
-	return ' ' // unrecognized/unsupported
+	return ' ', tcell.ColorRed
+}
+
+func (r *SimpleRenderer) getTrainCarChar(c *trains.TrainCar) (rune, tcell.Color) {
+	switch c.Type {
+	case trains.CarTypeLocomotive:
+		return 'H', tcell.ColorRed
+	case trains.CarTypeCargo:
+		return 'O', tcell.ColorOrange
+	default:
+		return 'X', tcell.ColorRed
+	}
 }
 
 func (r *SimpleRenderer) drawLogs(startY int) {

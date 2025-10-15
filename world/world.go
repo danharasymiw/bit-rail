@@ -17,14 +17,14 @@ func New(width, height int) *World {
 	w := &World{
 		Width:    width,
 		Height:   height,
-		Tiles:    make([][]*types.Tile, 30),
+		Tiles:    make([][]*types.Tile, height),
 		Tracks:   make(map[*types.Tile]*types.Track),
 		Trains:   make([]*trains.Train, 0),
 		Occupied: make(map[int]bool),
 	}
 
 	for y := range w.Tiles {
-		w.Tiles[y] = make([]*types.Tile, 30)
+		w.Tiles[y] = make([]*types.Tile, width)
 		for x := range w.Tiles[y] {
 			w.Tiles[y][x] = &types.Tile{Type: types.TileGrass}
 		}

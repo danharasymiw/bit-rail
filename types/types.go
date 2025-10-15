@@ -9,8 +9,6 @@ type TileType uint8
 const (
 	TileGrass TileType = iota
 	TileTrack
-	TileTrackCurveRight
-	TileTrackCurveLeft
 	TileIron
 	TileWater
 	TileWood
