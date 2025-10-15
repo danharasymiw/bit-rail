@@ -11,7 +11,8 @@ const (
 	TileTrack
 	TileIron
 	TileWater
-	TileWood
+	TileTree
+	TileMountain
 )
 
 type Dir uint8
