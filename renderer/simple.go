@@ -127,9 +127,9 @@ func (r *SimpleRenderer) getTileChar(x, y int, t *types.Tile) (rune, tcell.Style
 func (r *SimpleRenderer) getTrainCarChar(c *trains.TrainCar) (rune, tcell.Color) {
 	switch c.Type {
 	case trains.CarTypeLocomotive:
-		return 'H', tcell.ColorRed
+		return '█', tcell.ColorRed
 	case trains.CarTypeCargo:
-		return 'O', tcell.ColorOrange
+		return '▓', tcell.ColorSilver
 	default:
 		return 'X', tcell.ColorRed
 	}
