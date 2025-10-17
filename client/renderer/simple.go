@@ -20,20 +20,25 @@ func NewSimpleRenderer(screen tcell.Screen, w *world.World) *SimpleRenderer {
 	}
 }
 
+func (r *SimpleRenderer) Screen() tcell.Screen {
+	return r.screen
+}
+
 func (r *SimpleRenderer) Draw() {
-	r.drawWorld()
 	r.drawLogs(30)
 	r.screen.Show()
 }
 
-func (r *SimpleRenderer) drawWorld() {
-	for y, row := range r.w.Tiles {
-		for x, t := range row {
+func (r *SimpleRenderer) RenderRegion(x, y, width, height int) {
+	for y, row := range r.w.Tiles[y : y+height] {
+		for x, t := range row[x : x+width] {
 			ch, style := r.getTileChar(x, y, t)
 			r.screen.SetContent(x, y, ch, nil, style)
 		}
 	}
+}
 
+func (r *SimpleRenderer) RenderTrains(trains []*trains.Train) {
 	for _, t := range r.w.Trains {
 		for _, c := range t.Cars {
 			ch, col := r.getTrainCarChar(c)
@@ -145,8 +150,4 @@ func (r *SimpleRenderer) drawLogs(startY int) {
 			r.screen.SetContent(x, startY+i, ' ', nil, tcell.StyleDefault)
 		}
 	}
-}
-
-func (r *SimpleRenderer) Screen() tcell.Screen {
-	return r.screen
 }

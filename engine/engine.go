@@ -3,53 +3,44 @@ package engine
 import (
 	"time"
 
-	"github.com/danharasymiw/trains/renderer"
+	"github.com/danharasymiw/trains/client"
+	"github.com/danharasymiw/trains/client/renderer"
 	"github.com/danharasymiw/trains/trains"
 	"github.com/danharasymiw/trains/types"
 	"github.com/danharasymiw/trains/world"
-	"github.com/gdamore/tcell"
 )
 
 type Engine struct {
 	w       *world.World
 	tickDur time.Duration
-	Running bool
+	running bool
 	r       renderer.Renderer
 }
 
-func New(w *world.World, r renderer.Renderer, tickDur time.Duration) *Engine {
+func New(w *world.World, tickDur time.Duration) *Engine {
 	return &Engine{
 		w:       w,
-		r:       r,
 		tickDur: tickDur,
 	}
 }
 
 func (e *Engine) Run() {
-	events := make(chan tcell.Event, 16)
-	go func() {
-		for {
-			ev := e.r.Screen().PollEvent() // blocks here
-			events <- ev
-		}
-	}()
 	ticker := time.NewTicker(e.tickDur)
 	defer ticker.Stop()
 
-	e.Running = true
-	for e.Running {
-		<-ticker.C
-		e.tick()
-		e.r.Draw()
+	// TODO one day add headless mode
+	client, quitCh := client.NewLocal(e.w)
+	go func() {
+		client.Run()
+	}()
 
-		// Process all queued input (non-blocking)
+	e.running = true
+	for e.running {
 		select {
-		case ev := <-events:
-			if _, ok := ev.(*tcell.EventKey); ok {
-				e.Running = false // quit on any key
-			}
-		default:
-			break
+		case <-ticker.C:
+			e.tick()
+		case <-quitCh:
+			e.running = false
 		}
 	}
 }
