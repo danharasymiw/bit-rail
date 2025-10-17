@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/danharasymiw/trains/client"
-	"github.com/danharasymiw/trains/client/renderer"
 	"github.com/danharasymiw/trains/trains"
 	"github.com/danharasymiw/trains/types"
 	"github.com/danharasymiw/trains/world"
@@ -14,7 +13,6 @@ type Engine struct {
 	w       *world.World
 	tickDur time.Duration
 	running bool
-	r       renderer.Renderer
 }
 
 func New(w *world.World, tickDur time.Duration) *Engine {

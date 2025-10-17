@@ -3,7 +3,6 @@ package client
 import (
 	"time"
 
-	"github.com/danharasymiw/trains/client/renderer"
 	"github.com/danharasymiw/trains/trains"
 	"github.com/danharasymiw/trains/world"
 	"github.com/gdamore/tcell"
@@ -11,7 +10,7 @@ import (
 
 type localClient struct {
 	w       *world.World
-	r       renderer.Renderer
+	r       Renderer
 	quitCh  chan bool
 	running bool
 
@@ -37,7 +36,7 @@ func (c *localClient) Run() {
 	}
 	defer screen.Fini()
 
-	c.r = renderer.NewSimpleRenderer(screen, c.w)
+	c.r = NewSimpleRenderer(screen, c.w)
 	c.running = true
 
 	// Buffered event channel to receive user input
