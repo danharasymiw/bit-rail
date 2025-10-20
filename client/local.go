@@ -62,13 +62,23 @@ func (c *localClient) Run() {
 			case *tcell.EventKey:
 				switch tev.Key() {
 				case tcell.KeyUp:
-					c.camY++
+					_, height := c.r.Screen().Size()
+					if c.camY < c.w.Height - height {
+						c.camY++
+					}
 				case tcell.KeyDown:
-					c.camY--
+					if c.camY > 0 {
+						c.camY--
+					}
 				case tcell.KeyLeft:
-					c.camX--
+					if c.camX > 0 {
+						c.camX--
+					}
 				case tcell.KeyRight:
-					c.camX+=2 // Move 2x since chars are taller than wide
+					width, _ := c.r.Screen().Size()
+					if c.camX < c.w.Width - width {
+						c.camX+=2
+					}
 				}
 				if tev.Rune() == 'q' {
 					c.running = false
