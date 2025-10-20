@@ -9,9 +9,8 @@ import (
 )
 
 type Renderer interface {
-	RenderRegion(x, y, width, height int)
-	RenderTrains([]*trains.Train)
-	Screen() tcell.Screen // Would rather not have this coupled with tcell... but its just to stop server
+	Render(camX, camY int)
+	Screen() tcell.Screen
 }
 
 type SimpleRenderer struct {
@@ -30,26 +29,55 @@ func (r *SimpleRenderer) Screen() tcell.Screen {
 	return r.screen
 }
 
-func (r *SimpleRenderer) Draw() {
-	r.drawLogs(30)
+func (r *SimpleRenderer) Render(camX, camY int) {
+	termWidth, termHeight := r.screen.Size()
+
+	infoPanelWidth := 35
+	chatPanelHeight := 10
+	worldWidth := termWidth - infoPanelWidth
+	worldHeight := termHeight - chatPanelHeight
+
+	r.renderRegion(camX, camY, worldWidth, worldHeight)
+	r.renderTrains(camX, camY, worldWidth, worldHeight)
+	r.renderInfoPanel(worldWidth, 0, infoPanelWidth, worldHeight)
+	r.renderChatPanel(0, worldHeight, termWidth, chatPanelHeight)
+
 	r.screen.Show()
 }
 
-func (r *SimpleRenderer) RenderRegion(x, y, width, height int) {
-	for y, row := range r.w.Tiles[y : y+height] {
-		for x, t := range row[x : x+width] {
-			ch, style := r.getTileChar(x, y, t)
-			r.screen.SetContent(x, y, ch, nil, style)
+func (r *SimpleRenderer) renderRegion(x, y, width, height int) {
+	for relY, row := range r.w.Tiles[y : y+height] {
+		for relX, t := range row[x : x+width] {
+			worldX := x + relX
+			worldY := y + relY
+			ch, style := r.getTileChar(worldX, worldY, t)
+			screenY := height - 1 - relY // Flip Y
+			r.screen.SetContent(relX, screenY, ch, nil, style)
 		}
 	}
 }
 
-func (r *SimpleRenderer) RenderTrains(trains []*trains.Train) {
+func (r *SimpleRenderer) renderTrains(x, y, width, height int) {
 	for _, t := range r.w.Trains {
+		// Assuming train limits of 100 - check the first car to see if its
+		// even possible to be on screen
+		if len(t.Cars) > 0 {
+			c := t.Cars[0]
+			if c.X < x-100 || c.X >= x+width+100 || c.Y < y-100 || c.Y >= y+height+100 {
+				continue // Skip this train
+			}
+		}
 		for _, c := range t.Cars {
+			if c.X < x || c.X >= x+width || c.Y < y || c.Y >= y+height {
+				continue // Skip this car
+			}
+
 			ch, col := r.getTrainCarChar(c)
 			style := tcell.StyleDefault.Foreground(col)
-			r.screen.SetContent(c.X, c.Y, ch, nil, style)
+			screenX := c.X - x
+			screenY := height - 1 - (c.Y - y)
+
+			r.screen.SetContent(screenX, screenY, ch, nil, style)
 		}
 	}
 }
@@ -156,4 +184,52 @@ func (r *SimpleRenderer) drawLogs(startY int) {
 			r.screen.SetContent(x, startY+i, ' ', nil, tcell.StyleDefault)
 		}
 	}
+}
+
+func (r *SimpleRenderer) renderInfoPanel(x, y, width, height int) {
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+
+	// Draw border
+	for i := 0; i < height; i++ {
+		r.screen.SetContent(x, y+i, '│', nil, borderStyle)
+	}
+
+	// Title
+	title := " Info "
+	for i, ch := range title {
+		r.screen.SetContent(x+1+i, y, ch, nil, borderStyle)
+	}
+
+	// Clear content area
+	for py := y + 1; py < y+height; py++ {
+		for px := x + 1; px < x+width; px++ {
+			r.screen.SetContent(px, py, ' ', nil, tcell.StyleDefault)
+		}
+	}
+
+	// TODO: Add actual info content here
+}
+
+func (r *SimpleRenderer) renderChatPanel(x, y, width, height int) {
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+
+	// Draw top border
+	for i := 0; i < width; i++ {
+		r.screen.SetContent(x+i, y, '─', nil, borderStyle)
+	}
+
+	// Title
+	title := " Chat "
+	for i, ch := range title {
+		r.screen.SetContent(x+2+i, y, ch, nil, borderStyle)
+	}
+
+	// Clear content area
+	for py := y + 1; py < y+height; py++ {
+		for px := x; px < x+width; px++ {
+			r.screen.SetContent(px, py, ' ', nil, tcell.StyleDefault)
+		}
+	}
+
+	// TODO: Add actual chat messages here
 }

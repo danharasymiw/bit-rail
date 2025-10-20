@@ -10,6 +10,8 @@ func NewPerlinWorld(seed, smoothness int64) *world.World {
 	w := world.New(500, 500)
 	world.Generate(w, seed)
 
+	w.AddTrack(0, 0, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
+
 	for x := 35; x < 80; x++ {
 		w.AddTrack(x, 20, types.DirEast|types.DirWest)
 		w.AddTrack(x, 55, types.DirEast|types.DirWest)
@@ -18,10 +20,10 @@ func NewPerlinWorld(seed, smoothness int64) *world.World {
 		w.AddTrack(35, y, types.DirNorth|types.DirSouth)
 		w.AddTrack(80, y, types.DirNorth|types.DirSouth)
 	}
-	w.AddTrack(35, 20, types.DirSouth|types.DirEast)
-	w.AddTrack(80, 20, types.DirSouth|types.DirWest)
-	w.AddTrack(35, 55, types.DirNorth|types.DirEast)
-	w.AddTrack(80, 55, types.DirNorth|types.DirWest)
+	w.AddTrack(35, 20, types.DirNorth|types.DirEast)
+	w.AddTrack(80, 20, types.DirNorth|types.DirWest)
+	w.AddTrack(35, 55, types.DirSouth|types.DirEast)
+	w.AddTrack(80, 55, types.DirSouth|types.DirWest)
 
 	w.AddTrain(&trains.Train{
 		IsMoving: true,
@@ -67,10 +69,10 @@ func NewPerlinWorld(seed, smoothness int64) *world.World {
 		w.AddTrack(65, y, types.DirNorth|types.DirSouth)
 		w.AddTrack(90, y, types.DirNorth|types.DirSouth)
 	}
-	w.AddTrack(65, 40, types.DirSouth|types.DirEast)
-	w.AddTrack(90, 40, types.DirSouth|types.DirWest)
-	w.AddTrack(65, 60, types.DirNorth|types.DirEast)
-	w.AddTrack(90, 60, types.DirNorth|types.DirWest)
+	w.AddTrack(65, 40, types.DirNorth|types.DirEast)
+	w.AddTrack(90, 40, types.DirNorth|types.DirWest)
+	w.AddTrack(65, 60, types.DirSouth|types.DirEast)
+	w.AddTrack(90, 60, types.DirSouth|types.DirWest)
 
 	w.AddTrack(80, 40, types.DirSouth|types.DirNorth|types.DirEast|types.DirWest)
 	w.AddTrack(65, 55, types.DirSouth|types.DirNorth|types.DirEast|types.DirWest)

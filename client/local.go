@@ -3,7 +3,6 @@ package client
 import (
 	"time"
 
-	"github.com/danharasymiw/trains/trains"
 	"github.com/danharasymiw/trains/world"
 	"github.com/gdamore/tcell"
 )
@@ -63,13 +62,13 @@ func (c *localClient) Run() {
 			case *tcell.EventKey:
 				switch tev.Key() {
 				case tcell.KeyUp:
-					c.camY--
-				case tcell.KeyDown:
 					c.camY++
+				case tcell.KeyDown:
+					c.camY--
 				case tcell.KeyLeft:
 					c.camX--
 				case tcell.KeyRight:
-					c.camX++
+					c.camX+=2 // Move 2x since chars are taller than wide
 				}
 				if tev.Rune() == 'q' {
 					c.running = false
@@ -79,10 +78,7 @@ func (c *localClient) Run() {
 			}
 
 		case <-ticker.C:
-			// render game state periodically
-			c.r.RenderRegion(c.camX, c.camY, 120, 90)
-			c.r.RenderTrains([]*trains.Train{})
-			c.r.Screen().Show()
+			c.r.Render(c.camX, c.camY)
 		}
 	}
 
