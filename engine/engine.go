@@ -3,33 +3,43 @@ package engine
 import (
 	"time"
 
-	"github.com/danharasymiw/trains/client"
-	"github.com/danharasymiw/trains/trains"
-	"github.com/danharasymiw/trains/types"
-	"github.com/danharasymiw/trains/world"
+	"github.com/danharasymiw/bit-rail/client"
+	"github.com/danharasymiw/bit-rail/message"
+	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
+	"github.com/danharasymiw/bit-rail/world"
 )
 
 type Engine struct {
-	w       *world.World
-	tickDur time.Duration
-	running bool
+	w                   *world.World
+	tickDur             time.Duration
+	running             bool
+	nm                  *networkManager
 }
 
 func New(w *world.World, tickDur time.Duration) *Engine {
-	return &Engine{
-		w:       w,
-		tickDur: tickDur,
+	eng := &Engine{
+		w:                   w,
+		tickDur:             tickDur,
 	}
+	eng.nm = newNetworkManager(eng.getInitialLoadForPlayer)
+	return eng
 }
 
 func (e *Engine) Run() {
+	go e.nm.startServer()
+
 	ticker := time.NewTicker(e.tickDur)
 	defer ticker.Stop()
 
 	// TODO one day add headless mode
-	client, quitCh := client.NewLocal(e.w)
+	localClient, quitCh := client.New()
 	go func() {
-		client.Run()
+		time.Sleep(1 * time.Second)
+		err := localClient.Run()
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	e.running = true
@@ -146,4 +156,46 @@ func nextPos(x, y int, dir types.Dir) (int, int) {
 	default:
 		return x, y
 	}
+}
+
+func (e *Engine) getInitialLoadForPlayer() message.InitialLoadMessage {
+	camX := e.w.Width / 2
+	camY := e.w.Height / 2
+
+	return message.InitialLoadMessage{
+		Width:   e.w.Width,
+		Height:  e.w.Height,
+		CameraX: camX,
+		CameraY: camY,
+		Chunks:  e.getChunksInRegion(camX, camY),
+		Trains:  e.getTrainsInRegion(camX, camY),
+	}
+}
+
+func (e *Engine) getChunksInRegion(chunkX, chunkY int) []message.Chunk {
+	chunks := make([]message.Chunk, 0)
+	for i := -1; i <= 1; i++ {
+		for j := -1; j <= 1; j++ {
+			// TODO: chunk size const somewhere
+			worldX := (chunkX + i) * 32
+			worldY := (chunkY + j) * 32
+			tiles := make([]*types.Tile, 0, 32*32)
+			for y := worldY; y < worldY+32; y++ {
+				for x := worldX; x < worldX+32; x++ {
+					tiles = append(tiles, e.w.Tiles[y][x])
+				}
+			}
+			chunks = append(chunks, message.Chunk{
+				X:     chunkX + i,
+				Y:     chunkY + j,
+				Size:  32,
+				Tiles: tiles,
+			})
+		}
+	}
+	return chunks
+}
+
+func (e *Engine) getTrainsInRegion(camX, camY int) []*trains.Train {
+	return e.w.Trains
 }
