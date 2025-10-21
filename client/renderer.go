@@ -1,15 +1,20 @@
 package client
 
 import (
-	"github.com/danharasymiw/trains/log"
-	"github.com/danharasymiw/trains/trains"
-	"github.com/danharasymiw/trains/types"
-	"github.com/danharasymiw/trains/world"
+	"github.com/danharasymiw/bit-rail/log"
+	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
+	"github.com/danharasymiw/bit-rail/world"
 	"github.com/gdamore/tcell"
 )
 
+type ChatMessage struct {
+	Author  string
+	Message string
+}
+
 type Renderer interface {
-	Render(camX, camY int)
+	Render(camX, camY int, chatMessages []ChatMessage)
 	Screen() tcell.Screen
 }
 
@@ -29,7 +34,7 @@ func (r *SimpleRenderer) Screen() tcell.Screen {
 	return r.screen
 }
 
-func (r *SimpleRenderer) Render(camX, camY int) {
+func (r *SimpleRenderer) Render(camX, camY int, chatMessages []ChatMessage) {
 	termWidth, termHeight := r.screen.Size()
 
 	infoPanelWidth := 35
@@ -40,7 +45,7 @@ func (r *SimpleRenderer) Render(camX, camY int) {
 	r.renderRegion(camX, camY, worldWidth, worldHeight)
 	r.renderTrains(camX, camY, worldWidth, worldHeight)
 	r.renderInfoPanel(worldWidth, 0, infoPanelWidth, worldHeight)
-	r.renderChatPanel(0, worldHeight, termWidth, chatPanelHeight)
+	r.renderChatPanel(0, worldHeight, termWidth, chatPanelHeight, chatMessages)
 
 	r.screen.Show()
 }
@@ -208,9 +213,10 @@ func (r *SimpleRenderer) renderInfoPanel(x, y, width, height int) {
 	}
 
 	// TODO: Add actual info content here
+
 }
 
-func (r *SimpleRenderer) renderChatPanel(x, y, width, height int) {
+func (r *SimpleRenderer) renderChatPanel(x, y, width, height int, chatMessages []ChatMessage) {
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 
 	// Draw top border
@@ -231,5 +237,36 @@ func (r *SimpleRenderer) renderChatPanel(x, y, width, height int) {
 		}
 	}
 
-	// TODO: Add actual chat messages here
+	// Render chat messages (bottom-up, most recent at bottom)
+	availableHeight := height - 1 // Subtract border
+	startIdx := 0
+	if len(chatMessages) > availableHeight {
+		startIdx = len(chatMessages) - availableHeight
+	}
+
+	lineY := y + 1
+	for i := startIdx; i < len(chatMessages) && lineY < y+height; i++ {
+		msg := chatMessages[i]
+
+		// Format: [Author] Message
+		var displayText string
+		if msg.Author != "" {
+			displayText = "[" + msg.Author + "] " + msg.Message
+		} else {
+			displayText = msg.Message
+		}
+
+		// Truncate if too long
+		if len(displayText) > width-2 {
+			displayText = displayText[:width-2]
+		}
+
+		// Render the message
+		msgStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+		for col, ch := range displayText {
+			r.screen.SetContent(x+1+col, lineY, ch, nil, msgStyle)
+		}
+
+		lineY++
+	}
 }
