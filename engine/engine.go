@@ -11,16 +11,16 @@ import (
 )
 
 type Engine struct {
-	w                   *world.World
-	tickDur             time.Duration
-	running             bool
-	nm                  *networkManager
+	w       *world.World
+	tickDur time.Duration
+	running bool
+	nm      *networkManager
 }
 
 func New(w *world.World, tickDur time.Duration) *Engine {
 	eng := &Engine{
-		w:                   w,
-		tickDur:             tickDur,
+		w:       w,
+		tickDur: tickDur,
 	}
 	eng.nm = newNetworkManager(eng.getInitialLoadForPlayer)
 	return eng
