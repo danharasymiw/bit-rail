@@ -2,7 +2,7 @@ package world
 
 import (
 	"github.com/aquilax/go-perlin"
-	"github.com/danharasymiw/trains/types"
+	"github.com/danharasymiw/bit-rail/types"
 )
 
 const (

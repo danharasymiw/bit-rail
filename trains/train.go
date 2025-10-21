@@ -1,7 +1,7 @@
 package trains
 
 import (
-	"github.com/danharasymiw/trains/types"
+	"github.com/danharasymiw/bit-rail/types"
 	"github.com/google/uuid"
 )
 

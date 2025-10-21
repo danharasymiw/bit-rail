@@ -1,9 +1,9 @@
 package test_worlds
 
 import (
-	"github.com/danharasymiw/trains/trains"
-	"github.com/danharasymiw/trains/types"
-	"github.com/danharasymiw/trains/world"
+	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
+	"github.com/danharasymiw/bit-rail/world"
 )
 
 func IntersectingLoopsTestWorld() *world.World {

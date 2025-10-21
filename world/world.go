@@ -1,8 +1,8 @@
 package world
 
 import (
-	"github.com/danharasymiw/trains/trains"
-	"github.com/danharasymiw/trains/types"
+	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
 )
 
 type World struct {

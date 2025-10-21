@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"github.com/danharasymiw/trains/types"
-	"github.com/danharasymiw/trains/world"
+	"github.com/danharasymiw/bit-rail/types"
+	"github.com/danharasymiw/bit-rail/world"
 )
 
 type blockManager struct {

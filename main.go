@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	"github.com/danharasymiw/trains/engine"
-	"github.com/danharasymiw/trains/world/test_worlds"
+	"github.com/danharasymiw/bit-rail/engine"
+	"github.com/danharasymiw/bit-rail/world/test_worlds"
 )
 
 func main() {

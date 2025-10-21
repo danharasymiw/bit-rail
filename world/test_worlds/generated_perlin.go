@@ -1,13 +1,13 @@
 package test_worlds
 
 import (
-	"github.com/danharasymiw/trains/trains"
-	"github.com/danharasymiw/trains/types"
-	"github.com/danharasymiw/trains/world"
+	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
+	"github.com/danharasymiw/bit-rail/world"
 )
 
 func NewPerlinWorld(seed, smoothness int64) *world.World {
-	w := world.New(500, 500)
+	w := world.New(2000, 2000)
 	world.Generate(w, seed)
 
 	w.AddTrack(0, 0, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
