@@ -165,11 +165,10 @@ func (e *Engine) getInitialLoadForPlayer() message.InitialLoadMessage {
 }
 
 func (e *Engine) getChunksInRegion(worldX, worldY int) []message.Chunk {
-	const chunkSize = 32
 	chunks := make([]message.Chunk, 0)
 
-	centerChunkX := worldX / chunkSize
-	centerChunkY := worldY / chunkSize
+	centerChunkX := worldX / world.ChunkSize
+	centerChunkY := worldY / world.ChunkSize
 
 	// Get 3x3 grid of chunks around the center
 	for i := -1; i <= 1; i++ {
@@ -181,16 +180,16 @@ func (e *Engine) getChunksInRegion(worldX, worldY int) []message.Chunk {
 				continue
 			}
 
-			startX := chunkX * chunkSize
-			startY := chunkY * chunkSize
+			startX := chunkX * world.ChunkSize
+			startY := chunkY * world.ChunkSize
 
 			if startX >= e.w.Width || startY >= e.w.Height {
 				continue
 			}
 
-			tiles := make([]*types.Tile, 0, chunkSize*chunkSize)
-			for y := startY; y < startY+chunkSize && y < e.w.Height; y++ {
-				for x := startX; x < startX+chunkSize && x < e.w.Width; x++ {
+			tiles := make([]*types.Tile, 0, world.ChunkSize*world.ChunkSize)
+			for y := startY; y < startY+world.ChunkSize && y < e.w.Height; y++ {
+				for x := startX; x < startX+world.ChunkSize && x < e.w.Width; x++ {
 					tiles = append(tiles, e.w.Tiles[y][x])
 				}
 			}
@@ -198,7 +197,6 @@ func (e *Engine) getChunksInRegion(worldX, worldY int) []message.Chunk {
 			chunks = append(chunks, message.Chunk{
 				X:     chunkX,
 				Y:     chunkY,
-				Size:  chunkSize,
 				Tiles: tiles,
 			})
 		}
