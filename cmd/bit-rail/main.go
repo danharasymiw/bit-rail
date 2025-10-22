@@ -19,7 +19,7 @@ func main() {
 	if *serverMode {
 		w := test_worlds.NewPerlinWorld(123, 123)
 		eng := engine.New(w, 150*time.Millisecond)
-		eng.Run(nil, nil)
+		eng.Run(make(chan struct{}), make(chan struct{}))
 	} else if *localMode {
 		w := test_worlds.NewPerlinWorld(123, 123)
 		eng := engine.New(w, 150*time.Millisecond)

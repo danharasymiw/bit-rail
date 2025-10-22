@@ -7,7 +7,6 @@ import (
 	"github.com/danharasymiw/bit-rail/message"
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/gdamore/tcell"
-	"github.com/gorilla/websocket"
 )
 
 type ChunkCoord struct {
@@ -20,10 +19,10 @@ type Client struct {
 	username     string
 
 	running bool
-	ws      *websocket.Conn
+	nm      *clientNetworkManager
 
-	camX, camY int
-	r          Renderer
+	camX, camY, camSpeed int
+	r                    Renderer
 
 	quitCh chan struct{}
 }
@@ -38,6 +37,7 @@ func New() (*Client, chan struct{}) {
 		quitCh:   quitCh,
 		running:  false,
 		username: usr.Username,
+		camSpeed: 2,
 	}, quitCh
 }
 
@@ -51,47 +51,26 @@ func (c *Client) Run() error {
 	}
 	defer screen.Fini()
 
-	ws, _, err := websocket.DefaultDialer.Dial("ws://localhost:2977/ws", nil)
+	c.nm, err = newClientNetworkManager()
 	if err != nil {
 		return err
 	}
-	c.ws = ws
+	c.nm.start()
 
-	if err := c.ws.WriteJSON(message.LoginMessage{
-		Username: c.username,
-	}); err != nil {
+	c.nm.outgoing() <- outgoingMessage{
+		loginMessage: &message.LoginMessage{
+			Username: c.username,
+		},
+	}
+
+	if err := c.waitForInitialLoad(); err != nil {
 		return err
-	}
-
-	var initialLoadMessage message.InitialLoadMessage
-	if err := c.ws.ReadJSON(&initialLoadMessage); err != nil {
-		return err
-	}
-	c.w = world.New(initialLoadMessage.Width, initialLoadMessage.Height)
-	c.camX = initialLoadMessage.CameraX
-	c.camY = initialLoadMessage.CameraY
-
-	c.chunksLoaded = make(map[ChunkCoord]struct{})
-	for _, chunk := range initialLoadMessage.Chunks {
-		c.chunksLoaded[ChunkCoord{X: chunk.X, Y: chunk.Y}] = struct{}{}
-		for i, tile := range chunk.Tiles {
-			worldY := chunk.Y*chunk.Size + i/chunk.Size
-			worldX := chunk.X*chunk.Size + i%chunk.Size
-			if worldY < c.w.Height && worldX < c.w.Width {
-				c.w.Tiles[worldY][worldX] = tile
-			}
-		}
-	}
-	for _, train := range initialLoadMessage.Trains {
-		c.w.AddTrain(train)
 	}
 
 	c.r = NewSimpleRenderer(screen, c.w)
 
-	// Buffered event channel to receive user input
 	events := make(chan tcell.Event, 32)
 
-	// Poll events in background
 	go func() {
 		for {
 			ev := screen.PollEvent()
@@ -114,23 +93,13 @@ func (c *Client) Run() error {
 			case *tcell.EventKey:
 				switch tev.Key() {
 				case tcell.KeyUp:
-					_, height := c.r.Screen().Size()
-					if c.camY < c.w.Height-height {
-						c.camY++
-					}
+					c.moveCamera(0, c.camSpeed)
 				case tcell.KeyDown:
-					if c.camY > 0 {
-						c.camY--
-					}
+					c.moveCamera(0, -c.camSpeed)
 				case tcell.KeyLeft:
-					if c.camX > 0 {
-						c.camX -= 2
-					}
+					c.moveCamera(-c.camSpeed, 0)
 				case tcell.KeyRight:
-					width, _ := c.r.Screen().Size()
-					if c.camX < c.w.Width-width {
-						c.camX += 2
-					}
+					c.moveCamera(c.camSpeed, 0)
 				}
 				if tev.Rune() == 'q' {
 					c.running = false
@@ -139,12 +108,120 @@ func (c *Client) Run() error {
 				screen.Sync()
 			}
 
+		case incoming := <-c.nm.incoming():
+			c.handleIncomingMessage(incoming)
+
 		case <-ticker.C:
 			c.r.Render(c.camX, c.camY, c.chatMessages)
 		}
 	}
 
 	// Tell whoever launched us that we're done
+	c.nm.close()
 	close(c.quitCh)
 	return nil
+}
+
+func (c *Client) waitForInitialLoad() error {
+	for incoming := range c.nm.incoming() {
+		if incoming.initialLoadMessage != nil {
+			return c.handleInitialLoad(incoming.initialLoadMessage)
+		}
+	}
+	return nil
+}
+
+func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
+	c.w = world.New(msg.Width, msg.Height)
+	c.camX = msg.CameraX
+	c.camY = msg.CameraY
+	c.chunksLoaded = make(map[ChunkCoord]struct{})
+
+	for _, chunk := range msg.Chunks {
+		c.chunksLoaded[ChunkCoord{X: chunk.X, Y: chunk.Y}] = struct{}{}
+		for i, tile := range chunk.Tiles {
+			worldY := chunk.Y*world.ChunkSize + i/world.ChunkSize
+			worldX := chunk.X*world.ChunkSize + i%world.ChunkSize
+			if worldY < c.w.Height && worldX < c.w.Width {
+				c.w.Tiles[worldY][worldX] = tile
+			}
+		}
+	}
+
+	for _, train := range msg.Trains {
+		c.w.AddTrain(train)
+	}
+
+	return nil
+}
+
+func (c *Client) handleIncomingMessage(incoming incomingMessage) {
+	switch {
+	case incoming.chatMessage != nil:
+		c.chatMessages = append(c.chatMessages, ChatMessage{
+			Author:  incoming.chatMessage.Author,
+			Message: incoming.chatMessage.Message,
+		})
+
+		// Keep only last N messages
+		const maxChatMessages = 50
+		if len(c.chatMessages) > maxChatMessages {
+			c.chatMessages = c.chatMessages[len(c.chatMessages)-maxChatMessages:]
+		}
+
+	case incoming.chunksMessage != nil:
+		for _, chunk := range incoming.chunksMessage.Chunks {
+			c.chunksLoaded[ChunkCoord{X: chunk.X, Y: chunk.Y}] = struct{}{}
+			for i, tile := range chunk.Tiles {
+				worldY := chunk.Y*world.ChunkSize + i/world.ChunkSize
+				worldX := chunk.X*world.ChunkSize + i%world.ChunkSize
+				if worldY < c.w.Height && worldX < c.w.Width {
+					c.w.Tiles[worldY][worldX] = tile
+				}
+			}
+		}
+	}
+}
+
+func (c *Client) moveCamera(xDelta, yDelta int) {
+	width, height := c.r.Screen().Size()
+	if yDelta > 0 && c.camY < c.w.Height-height {
+		c.camY += yDelta
+	} else if yDelta < 0 && c.camY > 0 {
+		c.camY += yDelta
+	}
+	if xDelta > 0 && c.camX < c.w.Width-width {
+		c.camX += xDelta
+	} else if xDelta < 0 && c.camX > 0 {
+		c.camX += xDelta
+	}
+
+	// Check if we need a new chunk
+	chunkX := c.camX / world.ChunkSize
+	chunkY := c.camY / world.ChunkSize
+
+	if xDelta > 0 {
+		c.getChunk(chunkX+1, chunkY)
+	} else if xDelta < 0 {
+		c.getChunk(chunkX-1, chunkY)
+	}
+	if yDelta > 0 {
+		c.getChunk(chunkX, chunkY+1)
+	} else if yDelta < 0 {
+		c.getChunk(chunkX, chunkY-1)
+	}
+}
+
+func (c *Client) getChunk(chunkX, chunkY int) {
+	if _, ok := c.chunksLoaded[ChunkCoord{X: chunkX, Y: chunkY}]; ok {
+		return
+	}
+	c.chunksLoaded[ChunkCoord{X: chunkX, Y: chunkY}] = struct{}{}
+
+	c.nm.outgoing() <- outgoingMessage{
+		getChunkMessage: &message.GetChunkMessage{
+			X: chunkX,
+			Y: chunkY,
+		},
+	}
 }

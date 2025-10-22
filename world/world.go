@@ -5,6 +5,8 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 )
 
+const ChunkSize = 32
+
 type World struct {
 	Width, Height int
 	Tiles         [][]*types.Tile

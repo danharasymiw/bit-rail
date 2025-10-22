@@ -11,6 +11,8 @@ const (
 	MessageTypeChat MessageType = iota
 	MessageTypeChunks
 	MessageTypeInitialLoad
+	MessageTypeLogin
+	MessageTypeGetChunk
 )
 
 type Message struct {
@@ -29,7 +31,6 @@ type ChunksMessage struct {
 
 type Chunk struct {
 	X, Y  int
-	Size  int // size of width and height
 	Tiles []*types.Tile
 }
 
@@ -42,4 +43,13 @@ type InitialLoadMessage struct {
 	CameraX, CameraY int
 	Chunks           []Chunk
 	Trains           []*trains.Train
+}
+
+type GetChunkMessage struct {
+	X, Y int
+}
+
+type ChunkMessage struct {
+	X, Y  int
+	Tiles []*types.Tile
 }
