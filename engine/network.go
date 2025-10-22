@@ -7,6 +7,7 @@ import (
 
 	"github.com/danharasymiw/bit-rail/message"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 type playerConnection struct {
@@ -38,6 +39,7 @@ func newNetworkManager(getInitialData initialDataProvider) *networkManager {
 
 func (nm *networkManager) startServer() {
 	http.HandleFunc("/ws", nm.wsHandler)
+	logrus.Info("Server running on :2977")
 	err := http.ListenAndServe(":2977", nil)
 	if err != nil {
 		panic(err)

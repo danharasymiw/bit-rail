@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/danharasymiw/bit-rail/log"
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
@@ -176,18 +175,6 @@ func (r *SimpleRenderer) getTrainCarChar(c *trains.TrainCar) (rune, tcell.Color)
 		return '▓', tcell.ColorSilver
 	default:
 		return 'X', tcell.ColorRed
-	}
-}
-
-func (r *SimpleRenderer) drawLogs(startY int) {
-	logs := log.GetLogs()
-	for i, msg := range logs {
-		for x, c := range msg {
-			r.screen.SetContent(x, startY+i, c, nil, tcell.StyleDefault)
-		}
-		for x := len(msg); x < 80; x++ {
-			r.screen.SetContent(x, startY+i, ' ', nil, tcell.StyleDefault)
-		}
 	}
 }
 

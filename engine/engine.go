@@ -8,6 +8,7 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
+	"github.com/sirupsen/logrus"
 )
 
 type Engine struct {
@@ -26,21 +27,37 @@ func New(w *world.World, tickDur time.Duration) *Engine {
 	return eng
 }
 
-func (e *Engine) Run() {
+func (e *Engine) RunHeadless() {
+	e.run(nil)
+}
+
+func (e *Engine) RunLocal() {
+	c, quitCh := client.New()
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Printf("Client panic: %v", r)
+				// Signal quit even on panic
+				select {
+				case quitCh <- true:
+				default:
+				}
+			}
+		}()
+
+		if err := c.Run(); err != nil {
+			logrus.Printf("Client error: %v", err)
+		}
+	}()
+
+	e.run(quitCh)
+}
+
+func (e *Engine) run(quitCh <-chan bool) {
 	go e.nm.startServer()
 
 	ticker := time.NewTicker(e.tickDur)
 	defer ticker.Stop()
-
-	// TODO one day add headless mode
-	localClient, quitCh := client.New()
-	go func() {
-		time.Sleep(1 * time.Second)
-		err := localClient.Run()
-		if err != nil {
-			panic(err)
-		}
-	}()
 
 	e.running = true
 	for e.running {
@@ -51,6 +68,9 @@ func (e *Engine) Run() {
 			e.running = false
 		}
 	}
+
+	// Give goroutines time to clean up
+	time.Sleep(100 * time.Millisecond)
 }
 
 func (e *Engine) tick() {
@@ -172,23 +192,41 @@ func (e *Engine) getInitialLoadForPlayer() message.InitialLoadMessage {
 	}
 }
 
-func (e *Engine) getChunksInRegion(chunkX, chunkY int) []message.Chunk {
+func (e *Engine) getChunksInRegion(worldX, worldY int) []message.Chunk {
+	const chunkSize = 32
 	chunks := make([]message.Chunk, 0)
+
+	centerChunkX := worldX / chunkSize
+	centerChunkY := worldY / chunkSize
+
+	// Get 3x3 grid of chunks around the center
 	for i := -1; i <= 1; i++ {
 		for j := -1; j <= 1; j++ {
-			// TODO: chunk size const somewhere
-			worldX := (chunkX + i) * 32
-			worldY := (chunkY + j) * 32
-			tiles := make([]*types.Tile, 0, 32*32)
-			for y := worldY; y < worldY+32; y++ {
-				for x := worldX; x < worldX+32; x++ {
+			chunkX := centerChunkX + i
+			chunkY := centerChunkY + j
+
+			if chunkX < 0 || chunkY < 0 {
+				continue
+			}
+
+			startX := chunkX * chunkSize
+			startY := chunkY * chunkSize
+
+			if startX >= e.w.Width || startY >= e.w.Height {
+				continue
+			}
+
+			tiles := make([]*types.Tile, 0, chunkSize*chunkSize)
+			for y := startY; y < startY+chunkSize && y < e.w.Height; y++ {
+				for x := startX; x < startX+chunkSize && x < e.w.Width; x++ {
 					tiles = append(tiles, e.w.Tiles[y][x])
 				}
 			}
+
 			chunks = append(chunks, message.Chunk{
-				X:     chunkX + i,
-				Y:     chunkY + j,
-				Size:  32,
+				X:     chunkX,
+				Y:     chunkY,
+				Size:  chunkSize,
 				Tiles: tiles,
 			})
 		}

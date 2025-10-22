@@ -51,8 +51,6 @@ func (c *Client) Run() error {
 	}
 	defer screen.Fini()
 
-	c.r = NewSimpleRenderer(screen, c.w)
-
 	ws, _, err := websocket.DefaultDialer.Dial("ws://localhost:2977/ws", nil)
 	if err != nil {
 		return err
@@ -77,12 +75,18 @@ func (c *Client) Run() error {
 	for _, chunk := range initialLoadMessage.Chunks {
 		c.chunksLoaded[ChunkCoord{X: chunk.X, Y: chunk.Y}] = struct{}{}
 		for i, tile := range chunk.Tiles {
-			c.w.Tiles[chunk.Y+i/chunk.Size][chunk.X+i%chunk.Size] = tile
+			worldY := chunk.Y*chunk.Size + i/chunk.Size
+			worldX := chunk.X*chunk.Size + i%chunk.Size
+			if worldY < c.w.Height && worldX < c.w.Width {
+				c.w.Tiles[worldY][worldX] = tile
+			}
 		}
 	}
 	for _, train := range initialLoadMessage.Trains {
 		c.w.AddTrain(train)
 	}
+
+	c.r = NewSimpleRenderer(screen, c.w)
 
 	// Buffered event channel to receive user input
 	events := make(chan tcell.Event, 32)
@@ -120,7 +124,7 @@ func (c *Client) Run() error {
 					}
 				case tcell.KeyLeft:
 					if c.camX > 0 {
-						c.camX--
+						c.camX -= 2
 					}
 				case tcell.KeyRight:
 					width, _ := c.r.Screen().Size()
