@@ -8,6 +8,7 @@ import (
 	"github.com/danharasymiw/bit-rail/client"
 	"github.com/danharasymiw/bit-rail/engine"
 	"github.com/danharasymiw/bit-rail/world/test_worlds"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -16,15 +17,25 @@ func main() {
 	flag.Parse()
 
 	if *serverMode {
-		// Run as headless server
 		w := test_worlds.NewPerlinWorld(123, 123)
 		eng := engine.New(w, 150*time.Millisecond)
-		eng.RunHeadless()
+		eng.Run(nil, nil)
 	} else if *localMode {
-		// Run server and client together in this process
 		w := test_worlds.NewPerlinWorld(123, 123)
 		eng := engine.New(w, 150*time.Millisecond)
-		eng.RunLocal()
+
+		c, quitCh := client.New()
+		readyCh := make(chan struct{})
+
+		go eng.Run(quitCh, readyCh)
+
+		// Wait for server to be ready
+		<-readyCh
+		logrus.Info("Server ready, starting client...")
+
+		if err := c.Run(); err != nil {
+			logrus.Printf("Client error: %v", err)
+		}
 	} else {
 		// Default: Run as client only
 		c, _ := client.New()

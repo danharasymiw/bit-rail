@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"sync"
 
@@ -37,13 +38,17 @@ func newNetworkManager(getInitialData initialDataProvider) *networkManager {
 	}
 }
 
-func (nm *networkManager) startServer() {
+func (nm *networkManager) startServer(readyCh chan<- struct{}) {
 	http.HandleFunc("/ws", nm.wsHandler)
-	logrus.Info("Server running on :2977")
-	err := http.ListenAndServe(":2977", nil)
+
+	listener, err := net.Listen("tcp", ":2977")
 	if err != nil {
 		panic(err)
 	}
+	logrus.Info("Server ready on :2977")
+	close(readyCh)
+
+	http.Serve(listener, nil)
 }
 
 func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {

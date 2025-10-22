@@ -25,11 +25,11 @@ type Client struct {
 	camX, camY int
 	r          Renderer
 
-	quitCh chan bool
+	quitCh chan struct{}
 }
 
-func New() (*Client, chan bool) {
-	quitCh := make(chan bool)
+func New() (*Client, chan struct{}) {
+	quitCh := make(chan struct{})
 	usr, err := user.Current()
 	if err != nil {
 		panic(err)
@@ -145,6 +145,6 @@ func (c *Client) Run() error {
 	}
 
 	// Tell whoever launched us that we're done
-	c.quitCh <- true
+	close(c.quitCh)
 	return nil
 }

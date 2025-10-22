@@ -3,12 +3,10 @@ package engine
 import (
 	"time"
 
-	"github.com/danharasymiw/bit-rail/client"
 	"github.com/danharasymiw/bit-rail/message"
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
-	"github.com/sirupsen/logrus"
 )
 
 type Engine struct {
@@ -27,34 +25,8 @@ func New(w *world.World, tickDur time.Duration) *Engine {
 	return eng
 }
 
-func (e *Engine) RunHeadless() {
-	e.run(nil)
-}
-
-func (e *Engine) RunLocal() {
-	c, quitCh := client.New()
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logrus.Printf("Client panic: %v", r)
-				// Signal quit even on panic
-				select {
-				case quitCh <- true:
-				default:
-				}
-			}
-		}()
-
-		if err := c.Run(); err != nil {
-			logrus.Printf("Client error: %v", err)
-		}
-	}()
-
-	e.run(quitCh)
-}
-
-func (e *Engine) run(quitCh <-chan bool) {
-	go e.nm.startServer()
+func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
+	go e.nm.startServer(readyCh)
 
 	ticker := time.NewTicker(e.tickDur)
 	defer ticker.Stop()
