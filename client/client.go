@@ -54,7 +54,7 @@ func (c *Client) Run() error {
 	}
 	c.nm.start()
 
-	c.nm.outgoing() <- outgoingMessage{
+	c.nm.outgoingCh <- outgoingMessage{
 		loginMessage: &message.LoginMessage{
 			Username: c.username,
 		},
@@ -105,7 +105,7 @@ func (c *Client) Run() error {
 				screen.Sync()
 			}
 
-		case incoming := <-c.nm.incoming():
+		case incoming := <-c.nm.incomingCh:
 			c.handleIncomingMessage(incoming)
 
 		case <-ticker.C:
@@ -120,7 +120,7 @@ func (c *Client) Run() error {
 }
 
 func (c *Client) waitForInitialLoad() error {
-	for incoming := range c.nm.incoming() {
+	for incoming := range c.nm.incomingCh {
 		if incoming.initialLoadMessage != nil {
 			return c.handleInitialLoad(incoming.initialLoadMessage)
 		}
@@ -185,16 +185,21 @@ func (c *Client) handleIncomingMessage(incoming incomingMessage) {
 
 func (c *Client) moveCamera(xDelta, yDelta int) {
 	width, height := c.r.Screen().Size()
-	if yDelta > 0 && c.camY < c.w.Height-height {
-		c.camY += yDelta
-	} else if yDelta < 0 && c.camY > 0 {
-		c.camY += yDelta
+	newCamX := c.camX + xDelta
+	newCamY := c.camY + yDelta
+	if newCamX < 0 {
+		newCamX = 0
+	} else if newCamX > c.w.Width-width {
+		newCamX = c.w.Width - width
 	}
-	if xDelta > 0 && c.camX < c.w.Width-width {
-		c.camX += xDelta
-	} else if xDelta < 0 && c.camX > 0 {
-		c.camX += xDelta
+	if newCamY < 0 {
+		newCamY = 0
+	} else if newCamY > c.w.Height-height {
+		newCamY = c.w.Height - height
 	}
+
+	c.camX = newCamX
+	c.camY = newCamY
 
 	// Ensure we have a buffer of chunks around the camera
 	c.loadChunksAroundCamera()
@@ -234,7 +239,7 @@ func (c *Client) getChunks(chunkCoords []world.ChunkCoord) {
 		return
 	}
 
-	c.nm.outgoing() <- outgoingMessage{
+	c.nm.outgoingCh <- outgoingMessage{
 		getChunkMessage: &message.GetChunksMessage{
 			Coords: missingCoords,
 		},

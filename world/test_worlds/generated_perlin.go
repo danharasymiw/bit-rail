@@ -7,7 +7,7 @@ import (
 )
 
 func NewPerlinWorld(seed, smoothness int64) *world.World {
-	w := world.New(2000, 2000)
+	w := world.New(500, 500)
 	world.Generate(w, seed)
 
 	w.AddTrack(0, 0, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)

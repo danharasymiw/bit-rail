@@ -216,6 +216,9 @@ func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
 
 	chunks := make([]*world.Chunk, 0, len(playerMsg.message.getChunksMessage.Coords))
 	for _, coord := range playerMsg.message.getChunksMessage.Coords {
+		if coord.X < 0 || coord.Y < 0 || coord.X >= e.w.Width || coord.Y >= e.w.Height {
+			continue
+		}
 		chunks = append(chunks, e.w.ChunkAt(coord))
 	}
 	*playerMsg.responseCh <- outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}

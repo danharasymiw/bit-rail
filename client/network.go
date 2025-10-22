@@ -38,15 +38,6 @@ func newClientNetworkManager() (*clientNetworkManager, error) {
 	}, nil
 }
 
-// Incoming returns the channel for receiving messages from server
-func (nm *clientNetworkManager) incoming() <-chan incomingMessage {
-	return nm.incomingCh
-}
-
-func (nm *clientNetworkManager) outgoing() chan<- outgoingMessage {
-	return nm.outgoingCh
-}
-
 func (nm *clientNetworkManager) start() {
 	go nm.readLoop()
 	go nm.writeLoop()
