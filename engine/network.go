@@ -11,10 +11,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type incomingMessage struct {
+	loginMessage    *message.LoginMessage
+	chatMessage     *message.ChatMessage
+	getChunkMessage *message.GetChunkMessage
+}
+
+type outgoingMessage struct {
+	initialLoadMessage *message.InitialLoadMessage
+	chatMessage        *message.ChatMessage
+	chunksMessage      *message.ChunksMessage
+}
+
 type playerConnection struct {
-	playerID string
-	ws       *websocket.Conn
-	sendChan chan message.Message
+	playerID   string
+	ws         *websocket.Conn
+	incomingCh chan incomingMessage
+	outgoingCh chan outgoingMessage
 }
 
 type initialDataProvider func() message.InitialLoadMessage
@@ -57,64 +70,120 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read login message
-	var loginMsg message.LoginMessage
-	if err := ws.ReadJSON(&loginMsg); err != nil {
+	var msg message.Message
+	if err := ws.ReadJSON(&msg); err != nil {
 		ws.Close()
 		return
 	}
 
-	nm.playersMu.Lock()
-	playerConn := &playerConnection{
-		playerID: loginMsg.Username,
-		ws:       ws,
-		sendChan: make(chan message.Message, 10),
+	if msg.Type != message.MessageTypeLogin {
+		logrus.Warn("First message was not login")
+		ws.Close()
+		return
 	}
+
+	var loginMsg message.LoginMessage
+	if err := json.Unmarshal(msg.Data, &loginMsg); err != nil {
+		logrus.Errorf("Failed to unmarshal login message: %v", err)
+		ws.Close()
+		return
+	}
+
+	playerConn := &playerConnection{
+		playerID:   loginMsg.Username,
+		ws:         ws,
+		incomingCh: make(chan incomingMessage, 100),
+		outgoingCh: make(chan outgoingMessage, 100),
+	}
+
+	nm.playersMu.Lock()
 	nm.players[loginMsg.Username] = playerConn
 	nm.playersMu.Unlock()
 
 	initialLoad := nm.getInitialData()
-
-	if err := ws.WriteJSON(initialLoad); err != nil {
-		nm.disconnectPlayer(loginMsg.Username)
-		ws.Close()
-		return
+	playerConn.outgoingCh <- outgoingMessage{
+		initialLoadMessage: &initialLoad,
 	}
 
-	// Start message handlers - handleWrite will handle cleanup
 	go nm.handleRead(playerConn)
-	nm.handleWrite(playerConn) // Block here until connection closes
+	nm.handleWrite(playerConn)
 }
 
-func (nm *networkManager) handleRead(playerConnection *playerConnection) {
+func (nm *networkManager) handleRead(playerConn *playerConnection) {
+	defer close(playerConn.incomingCh)
+
+	logEntry := logrus.WithField("player", playerConn.playerID)
 	for {
-		_, data, err := playerConnection.ws.ReadMessage()
-		if err != nil {
-			return
-		}
 		var msg message.Message
-		err = json.Unmarshal(data, &msg)
-		if err != nil {
+		if err := playerConn.ws.ReadJSON(&msg); err != nil {
+			logEntry.Errorf("WebSocket read error: %v", err)
 			return
 		}
+
+		var incoming incomingMessage
+
 		switch msg.Type {
 		case message.MessageTypeChat:
-			var chatMessage message.ChatMessage
-			err = json.Unmarshal(msg.Data, &chatMessage)
-			if err != nil {
-				return
+			var chatMsg message.ChatMessage
+			if err := json.Unmarshal(msg.Data, &chatMsg); err != nil {
+				logEntry.Errorf("Error unmarshaling chat message: %v", err)
+				continue
 			}
-			playerConnection.sendChan <- msg
+			incoming.chatMessage = &chatMsg
+
+		case message.MessageTypeGetChunk:
+			var getChunkMsg message.GetChunkMessage
+			if err := json.Unmarshal(msg.Data, &getChunkMsg); err != nil {
+				logEntry.Errorf("Error unmarshaling get chunk message: %v", err)
+				continue
+			}
+			incoming.getChunkMessage = &getChunkMsg
+
+		default:
+			logEntry.Debugf("Unknown message type: %d", msg.Type)
+			continue
 		}
+
+		playerConn.incomingCh <- incoming
 	}
 }
 
-func (nm *networkManager) handleWrite(playerConnection *playerConnection) {
-	defer nm.disconnectPlayer(playerConnection.playerID)
-	defer playerConnection.ws.Close()
+func (nm *networkManager) handleWrite(playerConn *playerConnection) {
+	logEntry := logrus.WithField("player", playerConn.playerID)
+	defer nm.disconnectPlayer(playerConn.playerID)
+	defer playerConn.ws.Close()
 
-	for msg := range playerConnection.sendChan {
-		if err := playerConnection.ws.WriteJSON(msg); err != nil {
+	for outgoing := range playerConn.outgoingCh {
+		var msgType message.MessageType
+		var data []byte
+		var err error
+
+		if outgoing.initialLoadMessage != nil {
+			msgType = message.MessageTypeInitialLoad
+			data, err = json.Marshal(outgoing.initialLoadMessage)
+		} else if outgoing.chatMessage != nil {
+			msgType = message.MessageTypeChat
+			data, err = json.Marshal(outgoing.chatMessage)
+		} else if outgoing.chunksMessage != nil {
+			msgType = message.MessageTypeChunks
+			data, err = json.Marshal(outgoing.chunksMessage)
+		} else {
+			logEntry.Warn("Unknown outgoing message type")
+			continue
+		}
+
+		if err != nil {
+			logEntry.Errorf("Error marshaling message: %v", err)
+			continue
+		}
+
+		msg := message.Message{
+			Type: msgType,
+			Data: data,
+		}
+
+		if err := playerConn.ws.WriteJSON(msg); err != nil {
+			logEntry.Errorf("WebSocket write error: %v", err)
 			return
 		}
 	}
@@ -123,8 +192,9 @@ func (nm *networkManager) handleWrite(playerConnection *playerConnection) {
 func (nm *networkManager) disconnectPlayer(playerID string) {
 	nm.playersMu.Lock()
 	if player, exists := nm.players[playerID]; exists {
-		close(player.sendChan)
+		close(player.outgoingCh)
 		delete(nm.players, playerID)
+		logrus.Infof("Player %s disconnected", playerID)
 	}
 	nm.playersMu.Unlock()
 }
