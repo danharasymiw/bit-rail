@@ -217,7 +217,7 @@ func (nm *networkManager) disconnectPlayer(playerID string) {
 	if player, exists := nm.players[playerID]; exists {
 		close(player.outgoingCh)
 		delete(nm.players, playerID)
-		logrus.Infof("Player %s disconnected", playerID)
+		logrus.Debugf("Player %s disconnected", playerID)
 	}
 	nm.playersMu.Unlock()
 }

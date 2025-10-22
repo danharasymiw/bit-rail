@@ -50,7 +50,7 @@ func (nm *clientNetworkManager) readLoop() {
 		var msg message.Message
 		err := nm.ws.ReadJSON(&msg)
 		if err != nil {
-			logrus.Infof("WebSocket read error: %v", err)
+			logrus.Debugf("WebSocket read error: %v", err)
 			return
 		}
 
@@ -120,7 +120,7 @@ func (nm *clientNetworkManager) writeLoop() {
 			Data: data,
 		}
 		if err := nm.ws.WriteJSON(msg); err != nil {
-			logrus.Infof("WebSocket write error: %v", err)
+			logrus.Debugf("WebSocket write error: %v", err)
 			return
 		}
 	}

@@ -190,7 +190,7 @@ func (e *Engine) handlePlayerMessage(playerMsg playerMessage) {
 func (e *Engine) handleChatMessage(playerMsg playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.chatMessage.Message)
 	e.nm.broadcastCh <- outgoingMessage{chatMessage: playerMsg.message.chatMessage}
-	entry.Infof("Player sent chat message")
+	entry.Debug("Player sent chat message")
 }
 
 func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
@@ -208,7 +208,7 @@ func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
 		Trains:  e.getTrainsInRegion(camX, camY),
 	}
 	*playerMsg.responseCh <- outgoingMessage{initialLoadMessage: &initialLoadMessage}
-	entry.Infof("Player sent initial load message")
+	entry.Debug("Player sent initial load message")
 }
 
 func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
@@ -222,22 +222,8 @@ func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
 		chunks = append(chunks, e.w.ChunkAt(coord))
 	}
 	*playerMsg.responseCh <- outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}
-	entry.Infof("Player requested chunks")
+	entry.Debugf("Player requested chunks")
 }
 func (e *Engine) getTrainsInRegion(camX, camY int) []*trains.Train {
 	return e.w.Trains
-}
-
-func (e *Engine) getInitialLoadForPlayer() message.InitialLoadMessage {
-	camX := e.w.Width / 2
-	camY := e.w.Height / 2
-
-	return message.InitialLoadMessage{
-		Width:   e.w.Width,
-		Height:  e.w.Height,
-		CameraX: camX,
-		CameraY: camY,
-		Chunks:  e.getChunksInRegion(camX, camY),
-		Trains:  e.getTrainsInRegion(camX, camY),
-	}
 }
