@@ -159,8 +159,8 @@ func (e *Engine) getChunksInRegion(worldX, worldY int) []*world.Chunk {
 	centerChunkCoords := world.TileToChunkCoords(worldX, worldY)
 
 	// Get 3x3 grid of chunks around the center
-	for i := -1; i <= 1; i++ {
-		for j := -1; j <= 1; j++ {
+	for i := -3; i <= 3; i++ {
+		for j := -3; j <= 3; j++ {
 			chunkX := centerChunkCoords.X + i
 			chunkY := centerChunkCoords.Y + j
 

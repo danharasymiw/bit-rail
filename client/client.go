@@ -207,7 +207,7 @@ func (c *Client) moveCamera(xDelta, yDelta int) {
 
 // loadChunksAroundCamera ensures a radius of chunks is loaded around the camera
 func (c *Client) loadChunksAroundCamera() {
-	const chunkRadius = 1
+	const chunkRadius = 3
 
 	centerChunk := world.TileToChunkCoords(c.camX, c.camY)
 
