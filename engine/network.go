@@ -11,10 +11,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// PlayerMessage wraps an incoming message with player context
+type playerMessage struct {
+	playerID   string
+	message    *incomingMessage
+	responseCh *chan outgoingMessage
+}
+
 type incomingMessage struct {
-	loginMessage    *message.LoginMessage
-	chatMessage     *message.ChatMessage
-	getChunkMessage *message.GetChunkMessage
+	loginMessage     *message.LoginMessage
+	chatMessage      *message.ChatMessage
+	getChunksMessage *message.GetChunksMessage
 }
 
 type outgoingMessage struct {
@@ -26,23 +33,22 @@ type outgoingMessage struct {
 type playerConnection struct {
 	playerID   string
 	ws         *websocket.Conn
-	incomingCh chan incomingMessage
 	outgoingCh chan outgoingMessage
 }
 
-type initialDataProvider func() message.InitialLoadMessage
-
 type networkManager struct {
-	getInitialData initialDataProvider
-	players        map[string]*playerConnection
-	playersMu      sync.RWMutex
-	upgrader       websocket.Upgrader
+	players     map[string]*playerConnection
+	playersMu   sync.RWMutex
+	upgrader    websocket.Upgrader
+	incomingCh  chan playerMessage   // Shared channel for ALL players
+	broadcastCh chan outgoingMessage // Shared channel for ALL players
 }
 
-func newNetworkManager(getInitialData initialDataProvider) *networkManager {
+func newNetworkManager() *networkManager {
 	return &networkManager{
-		getInitialData: getInitialData,
-		players:        make(map[string]*playerConnection),
+		players:     make(map[string]*playerConnection),
+		incomingCh:  make(chan playerMessage, 100),
+		broadcastCh: make(chan outgoingMessage, 100),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -61,6 +67,7 @@ func (nm *networkManager) startServer(readyCh chan<- struct{}) {
 	logrus.Info("Server ready on :2977")
 	close(readyCh)
 
+	go nm.broadcastLoop()
 	http.Serve(listener, nil)
 }
 
@@ -89,20 +96,24 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create response channel for this player
+	responseCh := make(chan outgoingMessage, 100)
+
 	playerConn := &playerConnection{
 		playerID:   loginMsg.Username,
 		ws:         ws,
-		incomingCh: make(chan incomingMessage, 100),
-		outgoingCh: make(chan outgoingMessage, 100),
+		outgoingCh: responseCh,
 	}
 
 	nm.playersMu.Lock()
 	nm.players[loginMsg.Username] = playerConn
 	nm.playersMu.Unlock()
 
-	initialLoad := nm.getInitialData()
-	playerConn.outgoingCh <- outgoingMessage{
-		initialLoadMessage: &initialLoad,
+	// Send login message to engine for processing
+	nm.incomingCh <- playerMessage{
+		playerID:   loginMsg.Username,
+		message:    &incomingMessage{loginMessage: &loginMsg},
+		responseCh: &responseCh,
 	}
 
 	go nm.handleRead(playerConn)
@@ -110,13 +121,11 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (nm *networkManager) handleRead(playerConn *playerConnection) {
-	defer close(playerConn.incomingCh)
-
 	logEntry := logrus.WithField("player", playerConn.playerID)
 	for {
 		var msg message.Message
 		if err := playerConn.ws.ReadJSON(&msg); err != nil {
-			logEntry.Errorf("WebSocket read error: %v", err)
+			logEntry.Debugf("WebSocket read error: %v", err)
 			return
 		}
 
@@ -131,20 +140,24 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 			}
 			incoming.chatMessage = &chatMsg
 
-		case message.MessageTypeGetChunk:
-			var getChunkMsg message.GetChunkMessage
-			if err := json.Unmarshal(msg.Data, &getChunkMsg); err != nil {
-				logEntry.Errorf("Error unmarshaling get chunk message: %v", err)
+		case message.MessageTypeGetChunks:
+			var getChunksMsg message.GetChunksMessage
+			if err := json.Unmarshal(msg.Data, &getChunksMsg); err != nil {
+				logEntry.Errorf("Error unmarshaling get chunks message: %v", err)
 				continue
 			}
-			incoming.getChunkMessage = &getChunkMsg
+			incoming.getChunksMessage = &getChunksMsg
 
 		default:
 			logEntry.Debugf("Unknown message type: %d", msg.Type)
 			continue
 		}
 
-		playerConn.incomingCh <- incoming
+		nm.incomingCh <- playerMessage{
+			playerID:   playerConn.playerID,
+			message:    &incoming,
+			responseCh: &playerConn.outgoingCh,
+		}
 	}
 }
 
@@ -186,6 +199,16 @@ func (nm *networkManager) handleWrite(playerConn *playerConnection) {
 			logEntry.Errorf("WebSocket write error: %v", err)
 			return
 		}
+	}
+}
+
+func (nm *networkManager) broadcastLoop() {
+	for msg := range nm.broadcastCh {
+		nm.playersMu.RLock()
+		for _, player := range nm.players {
+			player.outgoingCh <- msg
+		}
+		nm.playersMu.RUnlock()
 	}
 }
 

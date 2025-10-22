@@ -40,6 +40,32 @@ func (w *World) TileAt(x, y int) *types.Tile {
 	return w.Tiles[y][x]
 }
 
+type ChunkCoord struct {
+	X, Y int
+}
+
+type Chunk struct {
+	Coord ChunkCoord
+	Tiles []*types.Tile
+}
+
+func (w *World) ChunkAt(coord ChunkCoord) *Chunk {
+	tiles := make([]*types.Tile, 0, ChunkSize*ChunkSize)
+	for y := coord.Y*ChunkSize; y < (coord.Y+1)*ChunkSize; y++ {
+		for x := coord.X*ChunkSize; x < (coord.X+1)*ChunkSize; x++ {
+			tiles = append(tiles, w.Tiles[y][x])
+		}
+	}
+	return &Chunk{
+		Coord: coord,
+		Tiles: tiles,
+	}
+}
+
+func TileToChunkCoords(x, y int) ChunkCoord {
+	return ChunkCoord{X: x / ChunkSize, Y: y / ChunkSize}
+}
+
 func (w *World) OccupiedAt(x, y int) bool {
 	return w.Occupied[w.occupiedIndex(x, y)]
 }

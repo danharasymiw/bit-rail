@@ -7,6 +7,7 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
+	"github.com/sirupsen/logrus"
 )
 
 type Engine struct {
@@ -21,7 +22,7 @@ func New(w *world.World, tickDur time.Duration) *Engine {
 		w:       w,
 		tickDur: tickDur,
 	}
-	eng.nm = newNetworkManager(eng.getInitialLoadForPlayer)
+	eng.nm = newNetworkManager()
 	return eng
 }
 
@@ -34,6 +35,8 @@ func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
 	e.running = true
 	for e.running {
 		select {
+		case incoming := <-e.nm.incomingCh:
+			e.handlePlayerMessage(incoming)
 		case <-ticker.C:
 			e.tick()
 		case <-quitCh:
@@ -138,9 +141,9 @@ func (e *Engine) moveCars(cars []*trains.TrainCar, moveDir types.Dir, reverse bo
 func nextPos(x, y int, dir types.Dir) (int, int) {
 	switch dir {
 	case types.DirNorth:
-		return x, y - 1 // Think I'll have to reverse the Y to normal for actual client
-	case types.DirSouth:
 		return x, y + 1
+	case types.DirSouth:
+		return x, y - 1
 	case types.DirEast:
 		return x + 1, y
 	case types.DirWest:
@@ -148,6 +151,78 @@ func nextPos(x, y int, dir types.Dir) (int, int) {
 	default:
 		return x, y
 	}
+}
+
+func (e *Engine) getChunksInRegion(worldX, worldY int) []*world.Chunk {
+	chunks := make([]*world.Chunk, 0)
+
+	centerChunkCoords := world.TileToChunkCoords(worldX, worldY)
+
+	// Get 3x3 grid of chunks around the center
+	for i := -1; i <= 1; i++ {
+		for j := -1; j <= 1; j++ {
+			chunkX := centerChunkCoords.X + i
+			chunkY := centerChunkCoords.Y + j
+
+			if chunkX < 0 || chunkY < 0 {
+				continue
+			}
+
+			chunk := e.w.ChunkAt(world.ChunkCoord{X: chunkX, Y: chunkY})
+			chunks = append(chunks, chunk)
+		}
+	}
+	return chunks
+}
+
+func (e *Engine) handlePlayerMessage(playerMsg playerMessage) {
+	msg := playerMsg.message
+	switch {
+	case msg.chatMessage != nil:
+		e.handleChatMessage(playerMsg)
+	case msg.loginMessage != nil:
+		e.handleLoginMessage(playerMsg)
+	case msg.getChunksMessage != nil:
+		e.handleGetChunksMessage(playerMsg)
+	}
+}
+
+func (e *Engine) handleChatMessage(playerMsg playerMessage) {
+	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.chatMessage.Message)
+	e.nm.broadcastCh <- outgoingMessage{chatMessage: playerMsg.message.chatMessage}
+	entry.Infof("Player sent chat message")
+}
+
+func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
+	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.loginMessage.Username)
+
+	camX := e.w.Width / 2
+	camY := e.w.Height / 2
+
+	initialLoadMessage := message.InitialLoadMessage{
+		Width:   e.w.Width,
+		Height:  e.w.Height,
+		CameraX: camX,
+		CameraY: camY,
+		Chunks:  e.getChunksInRegion(camX, camY),
+		Trains:  e.getTrainsInRegion(camX, camY),
+	}
+	*playerMsg.responseCh <- outgoingMessage{initialLoadMessage: &initialLoadMessage}
+	entry.Infof("Player sent initial load message")
+}
+
+func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
+	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.getChunksMessage)
+
+	chunks := make([]*world.Chunk, 0, len(playerMsg.message.getChunksMessage.Coords))
+	for _, coord := range playerMsg.message.getChunksMessage.Coords {
+		chunks = append(chunks, e.w.ChunkAt(coord))
+	}
+	*playerMsg.responseCh <- outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}
+	entry.Infof("Player requested chunks")
+}
+func (e *Engine) getTrainsInRegion(camX, camY int) []*trains.Train {
+	return e.w.Trains
 }
 
 func (e *Engine) getInitialLoadForPlayer() message.InitialLoadMessage {
@@ -162,48 +237,4 @@ func (e *Engine) getInitialLoadForPlayer() message.InitialLoadMessage {
 		Chunks:  e.getChunksInRegion(camX, camY),
 		Trains:  e.getTrainsInRegion(camX, camY),
 	}
-}
-
-func (e *Engine) getChunksInRegion(worldX, worldY int) []message.Chunk {
-	chunks := make([]message.Chunk, 0)
-
-	centerChunkX := worldX / world.ChunkSize
-	centerChunkY := worldY / world.ChunkSize
-
-	// Get 3x3 grid of chunks around the center
-	for i := -1; i <= 1; i++ {
-		for j := -1; j <= 1; j++ {
-			chunkX := centerChunkX + i
-			chunkY := centerChunkY + j
-
-			if chunkX < 0 || chunkY < 0 {
-				continue
-			}
-
-			startX := chunkX * world.ChunkSize
-			startY := chunkY * world.ChunkSize
-
-			if startX >= e.w.Width || startY >= e.w.Height {
-				continue
-			}
-
-			tiles := make([]*types.Tile, 0, world.ChunkSize*world.ChunkSize)
-			for y := startY; y < startY+world.ChunkSize && y < e.w.Height; y++ {
-				for x := startX; x < startX+world.ChunkSize && x < e.w.Width; x++ {
-					tiles = append(tiles, e.w.Tiles[y][x])
-				}
-			}
-
-			chunks = append(chunks, message.Chunk{
-				X:     chunkX,
-				Y:     chunkY,
-				Tiles: tiles,
-			})
-		}
-	}
-	return chunks
-}
-
-func (e *Engine) getTrainsInRegion(camX, camY int) []*trains.Train {
-	return e.w.Trains
 }

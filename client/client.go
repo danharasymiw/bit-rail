@@ -9,12 +9,9 @@ import (
 	"github.com/gdamore/tcell"
 )
 
-type ChunkCoord struct {
-	X, Y int
-}
 type Client struct {
 	w            *world.World
-	chunksLoaded map[ChunkCoord]struct{}
+	chunksLoaded map[world.ChunkCoord]struct{}
 	chatMessages []ChatMessage
 	username     string
 
@@ -135,13 +132,13 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 	c.w = world.New(msg.Width, msg.Height)
 	c.camX = msg.CameraX
 	c.camY = msg.CameraY
-	c.chunksLoaded = make(map[ChunkCoord]struct{})
+	c.chunksLoaded = make(map[world.ChunkCoord]struct{})
 
 	for _, chunk := range msg.Chunks {
-		c.chunksLoaded[ChunkCoord{X: chunk.X, Y: chunk.Y}] = struct{}{}
+		c.chunksLoaded[chunk.Coord] = struct{}{}
 		for i, tile := range chunk.Tiles {
-			worldY := chunk.Y*world.ChunkSize + i/world.ChunkSize
-			worldX := chunk.X*world.ChunkSize + i%world.ChunkSize
+			worldY := chunk.Coord.Y*world.ChunkSize + i/world.ChunkSize
+			worldX := chunk.Coord.X*world.ChunkSize + i%world.ChunkSize
 			if worldY < c.w.Height && worldX < c.w.Width {
 				c.w.Tiles[worldY][worldX] = tile
 			}
@@ -151,6 +148,9 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 	for _, train := range msg.Trains {
 		c.w.AddTrain(train)
 	}
+
+	// Ensure we have full chunk buffer (in case initial load didn't include all)
+	c.loadChunksAroundCamera()
 
 	return nil
 }
@@ -171,10 +171,10 @@ func (c *Client) handleIncomingMessage(incoming incomingMessage) {
 
 	case incoming.chunksMessage != nil:
 		for _, chunk := range incoming.chunksMessage.Chunks {
-			c.chunksLoaded[ChunkCoord{X: chunk.X, Y: chunk.Y}] = struct{}{}
+			c.chunksLoaded[chunk.Coord] = struct{}{}
 			for i, tile := range chunk.Tiles {
-				worldY := chunk.Y*world.ChunkSize + i/world.ChunkSize
-				worldX := chunk.X*world.ChunkSize + i%world.ChunkSize
+				worldY := chunk.Coord.Y*world.ChunkSize + i/world.ChunkSize
+				worldX := chunk.Coord.X*world.ChunkSize + i%world.ChunkSize
 				if worldY < c.w.Height && worldX < c.w.Width {
 					c.w.Tiles[worldY][worldX] = tile
 				}
@@ -196,32 +196,47 @@ func (c *Client) moveCamera(xDelta, yDelta int) {
 		c.camX += xDelta
 	}
 
-	// Check if we need a new chunk
-	chunkX := c.camX / world.ChunkSize
-	chunkY := c.camY / world.ChunkSize
-
-	if xDelta > 0 {
-		c.getChunk(chunkX+1, chunkY)
-	} else if xDelta < 0 {
-		c.getChunk(chunkX-1, chunkY)
-	}
-	if yDelta > 0 {
-		c.getChunk(chunkX, chunkY+1)
-	} else if yDelta < 0 {
-		c.getChunk(chunkX, chunkY-1)
-	}
+	// Ensure we have a buffer of chunks around the camera
+	c.loadChunksAroundCamera()
 }
 
-func (c *Client) getChunk(chunkX, chunkY int) {
-	if _, ok := c.chunksLoaded[ChunkCoord{X: chunkX, Y: chunkY}]; ok {
+// loadChunksAroundCamera ensures a radius of chunks is loaded around the camera
+func (c *Client) loadChunksAroundCamera() {
+	const chunkRadius = 1
+
+	centerChunk := world.TileToChunkCoords(c.camX, c.camY)
+
+	chunkCoords := make([]world.ChunkCoord, 0, (2*chunkRadius+1)*(2*chunkRadius+1))
+	for dx := -chunkRadius; dx <= chunkRadius; dx++ {
+		for dy := -chunkRadius; dy <= chunkRadius; dy++ {
+			chunkCoords = append(chunkCoords, world.ChunkCoord{
+				X: centerChunk.X + dx,
+				Y: centerChunk.Y + dy,
+			})
+		}
+	}
+
+	c.getChunks(chunkCoords)
+}
+
+func (c *Client) getChunks(chunkCoords []world.ChunkCoord) {
+	missingCoords := make([]world.ChunkCoord, 0)
+	for _, coord := range chunkCoords {
+		if _, ok := c.chunksLoaded[coord]; ok {
+			continue
+		}
+		missingCoords = append(missingCoords, coord)
+		// Technically we don't have it yet but it's been requested to avoid requesting it again
+		// Might need to make this more intelligent later
+		c.chunksLoaded[coord] = struct{}{}
+	}
+	if len(missingCoords) == 0 {
 		return
 	}
-	c.chunksLoaded[ChunkCoord{X: chunkX, Y: chunkY}] = struct{}{}
 
 	c.nm.outgoing() <- outgoingMessage{
-		getChunkMessage: &message.GetChunkMessage{
-			X: chunkX,
-			Y: chunkY,
+		getChunkMessage: &message.GetChunksMessage{
+			Coords: missingCoords,
 		},
 	}
 }

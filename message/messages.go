@@ -2,7 +2,7 @@ package message
 
 import (
 	"github.com/danharasymiw/bit-rail/trains"
-	"github.com/danharasymiw/bit-rail/types"
+	"github.com/danharasymiw/bit-rail/world"
 )
 
 type MessageType uint8
@@ -12,7 +12,7 @@ const (
 	MessageTypeChunks
 	MessageTypeInitialLoad
 	MessageTypeLogin
-	MessageTypeGetChunk
+	MessageTypeGetChunks
 )
 
 type Message struct {
@@ -26,14 +26,12 @@ type ChatMessage struct {
 }
 
 type ChunksMessage struct {
-	Chunks []Chunk
+	Chunks []*world.Chunk
 }
 
-type Chunk struct {
-	X, Y  int
-	Tiles []*types.Tile
+type GetChunksMessage struct {
+	Coords []world.ChunkCoord
 }
-
 type LoginMessage struct {
 	Username string
 }
@@ -41,15 +39,6 @@ type LoginMessage struct {
 type InitialLoadMessage struct {
 	Width, Height    int
 	CameraX, CameraY int
-	Chunks           []Chunk
+	Chunks           []*world.Chunk
 	Trains           []*trains.Train
-}
-
-type GetChunkMessage struct {
-	X, Y int
-}
-
-type ChunkMessage struct {
-	X, Y  int
-	Tiles []*types.Tile
 }
