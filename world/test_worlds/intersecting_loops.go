@@ -14,21 +14,21 @@ func IntersectingLoopsTestWorld() *world.World {
 	// First track
 	// Simple horizontal tracks
 	for x := 5; x <= 15; x++ {
-		w.AddTrack(x, 10, types.DirEast|types.DirWest)
-		w.AddTrack(x, 7, types.DirEast|types.DirWest)
+		w.AddTrack(world.Pos{X: x, Y: 10}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(world.Pos{X: x, Y: 7}, &types.Track{Direction: types.DirEast | types.DirWest})
 	}
 
 	// Vertical connections for the loop
 	for y := 7; y <= 10; y++ {
-		w.AddTrack(5, y, types.DirNorth|types.DirSouth)
-		w.AddTrack(15, y, types.DirNorth|types.DirSouth)
+		w.AddTrack(world.Pos{X: 5, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(world.Pos{X: 15, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
 	}
 
 	// Corners
-	w.AddTrack(5, 7, types.DirSouth|types.DirEast)
-	w.AddTrack(15, 7, types.DirSouth|types.DirWest)
-	w.AddTrack(5, 10, types.DirNorth|types.DirEast)
-	w.AddTrack(15, 10, types.DirNorth|types.DirWest)
+	w.AddTrack(world.Pos{X: 5, Y: 7}, &types.Track{Direction: types.DirSouth | types.DirEast})
+	w.AddTrack(world.Pos{X: 15, Y: 7}, &types.Track{Direction: types.DirSouth | types.DirWest})
+	w.AddTrack(world.Pos{X: 5, Y: 10}, &types.Track{Direction: types.DirNorth | types.DirEast})
+	w.AddTrack(world.Pos{X: 15, Y: 10}, &types.Track{Direction: types.DirNorth | types.DirWest})
 
 	w.AddTrain(&trains.Train{
 		IsMoving: true,
@@ -44,25 +44,25 @@ func IntersectingLoopsTestWorld() *world.World {
 
 	// Second track
 	for x := 10; x <= 17; x++ {
-		w.AddTrack(x, 12, types.DirEast|types.DirWest)
-		w.AddTrack(x, 9, types.DirEast|types.DirWest)
+		w.AddTrack(world.Pos{X: x, Y: 12}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(world.Pos{X: x, Y: 9}, &types.Track{Direction: types.DirEast | types.DirWest})
 	}
 
 	// Vertical connections for the loop
 	for y := 9; y <= 12; y++ {
-		w.AddTrack(10, y, types.DirNorth|types.DirSouth)
-		w.AddTrack(17, y, types.DirNorth|types.DirSouth)
+		w.AddTrack(world.Pos{X: 10, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(world.Pos{X: 17, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
 	}
 
 	// Corners
-	w.AddTrack(10, 9, types.DirSouth|types.DirEast)
-	w.AddTrack(17, 9, types.DirSouth|types.DirWest)
-	w.AddTrack(10, 12, types.DirNorth|types.DirEast)
-	w.AddTrack(17, 12, types.DirNorth|types.DirWest)
+	w.AddTrack(world.Pos{X: 10, Y: 9}, &types.Track{Direction: types.DirSouth | types.DirEast})
+	w.AddTrack(world.Pos{X: 17, Y: 9}, &types.Track{Direction: types.DirSouth | types.DirWest})
+	w.AddTrack(world.Pos{X: 10, Y: 12}, &types.Track{Direction: types.DirNorth | types.DirEast})
+	w.AddTrack(world.Pos{X: 17, Y: 12}, &types.Track{Direction: types.DirNorth | types.DirWest})
 
 	// Junctions
-	w.AddTrack(10, 10, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
-	w.AddTrack(15, 9, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
+	w.AddTrack(world.Pos{X: 10, Y: 10}, &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest})
+	w.AddTrack(world.Pos{X: 15, Y: 9}, &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest})
 
 	w.Trains = append(w.Trains, &trains.Train{
 		IsMoving: true,

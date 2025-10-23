@@ -68,14 +68,15 @@ func (e *Engine) moveTrain(t *trains.Train) {
 		moveDir = types.OppositeDir(car.Direction)
 	}
 
-	x, y, dir := car.X, car.Y, car.Direction
-	nextX, nextY := nextPos(x, y, dir)
-	nextTile := e.w.TileAt(nextX, nextY)
+	pos := world.Pos{X: car.X, Y: car.Y}
+	dir := car.Direction
+	nextPos := nextPos(pos, dir)
+	nextTile := e.w.TileAt(nextPos)
 	if nextTile.Type != types.TileTrack {
 		return
 	}
 
-	if e.w.OccupiedAt(nextX, nextY) {
+	if e.w.OccupiedAt(nextPos) {
 		return
 	}
 
@@ -86,8 +87,12 @@ func (e *Engine) moveTrain(t *trains.Train) {
 		car = t.Cars[len(t.Cars)-1]
 		car.Direction = types.OppositeDir(car.Direction)
 	}
-	x, y, dir = car.X, car.Y, car.Direction
-	track := e.w.Tracks[e.w.TileAt(x, y)]
+	pos = world.Pos{X: car.X, Y: car.Y}
+	dir = car.Direction
+	track := e.w.Tracks[pos]
+	if track == nil {
+		return
+	}
 
 	incFrom := types.OppositeDir(dir)
 	if track.Direction&incFrom == 0 {
@@ -121,54 +126,55 @@ func (e *Engine) moveCars(cars []*trains.TrainCar, moveDir types.Dir, reverse bo
 
 	car := cars[start]
 
-	newX, newY := nextPos(car.X, car.Y, moveDir)
+	newPos := nextPos(world.Pos{X: car.X, Y: car.Y}, moveDir)
 
-	prevX, prevY, prevDir := car.X, car.Y, moveDir
-	car.X, car.Y = newX, newY
-	e.w.SetOccupied(car.X, car.Y)
+	prevPos := world.Pos{X: car.X, Y: car.Y}
+	prevDir := moveDir
+	car.X, car.Y = newPos.X, newPos.Y
+	e.w.SetOccupied(world.Pos{X: car.X, Y: car.Y})
 
 	for i := start + step; i != end; i += step {
 		car = cars[i]
-		thisPrevX, thisPrevY, thisPrevDir := car.X, car.Y, car.Direction
+		thisPrevPos := world.Pos{X: car.X, Y: car.Y}
+		thisPrevDir := car.Direction
 
-		car.X, car.Y, car.Direction = prevX, prevY, prevDir
+		car.X, car.Y, car.Direction = prevPos.X, prevPos.Y, prevDir
 
-		prevX, prevY, prevDir = thisPrevX, thisPrevY, thisPrevDir
+		prevPos, prevDir = thisPrevPos, thisPrevDir
 	}
-	e.w.UnsetOccupied(prevX, prevY)
+	e.w.UnsetOccupied(prevPos)
 }
 
-func nextPos(x, y int, dir types.Dir) (int, int) {
+func nextPos(pos world.Pos, dir types.Dir) world.Pos {
 	switch dir {
 	case types.DirNorth:
-		return x, y + 1
+		return world.Pos{X: pos.X, Y: pos.Y + 1}
 	case types.DirSouth:
-		return x, y - 1
+		return world.Pos{X: pos.X, Y: pos.Y - 1}
 	case types.DirEast:
-		return x + 1, y
+		return world.Pos{X: pos.X + 1, Y: pos.Y}
 	case types.DirWest:
-		return x - 1, y
+		return world.Pos{X: pos.X - 1, Y: pos.Y}
 	default:
-		return x, y
+		return pos
 	}
 }
 
-func (e *Engine) getChunksInRegion(worldX, worldY int) []*world.Chunk {
+func (e *Engine) getChunksInRegion(worldPos world.Pos) []*world.Chunk {
 	chunks := make([]*world.Chunk, 0)
 
-	centerChunkCoords := world.TileToChunkCoords(worldX, worldY)
+	centerChunk := world.TileToChunkPos(worldPos)
 
 	// Get 3x3 grid of chunks around the center
 	for i := -3; i <= 3; i++ {
 		for j := -3; j <= 3; j++ {
-			chunkX := centerChunkCoords.X + i
-			chunkY := centerChunkCoords.Y + j
+			chunkPos := world.Pos{X: centerChunk.X + i, Y: centerChunk.Y + j}
 
-			if chunkX < 0 || chunkY < 0 {
+			if chunkPos.X < 0 || chunkPos.Y < 0 {
 				continue
 			}
 
-			chunk := e.w.ChunkAt(world.ChunkCoord{X: chunkX, Y: chunkY})
+			chunk := e.w.ChunkAt(chunkPos)
 			chunks = append(chunks, chunk)
 		}
 	}
@@ -196,16 +202,15 @@ func (e *Engine) handleChatMessage(playerMsg playerMessage) {
 func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.loginMessage.Username)
 
-	camX := e.w.Width / 2
-	camY := e.w.Height / 2
+	camPos := world.Pos{X: e.w.Width / 2, Y: e.w.Height / 2}
 
 	initialLoadMessage := message.InitialLoadMessage{
-		Width:   e.w.Width,
-		Height:  e.w.Height,
-		CameraX: camX,
-		CameraY: camY,
-		Chunks:  e.getChunksInRegion(camX, camY),
-		Trains:  e.getTrainsInRegion(camX, camY),
+		Width:     e.w.Width,
+		Height:    e.w.Height,
+		CameraPos: world.Pos{X: camPos.X, Y: camPos.Y},
+		Chunks:    e.getChunksInRegion(camPos),
+		Trains:    e.w.Trains, // TODO: get trains in region
+		Tracks:    e.w.Tracks, // TODO: get tracks in region
 	}
 	*playerMsg.responseCh <- outgoingMessage{initialLoadMessage: &initialLoadMessage}
 	entry.Debug("Player sent initial load message")
@@ -214,16 +219,16 @@ func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
 func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.getChunksMessage)
 
-	chunks := make([]*world.Chunk, 0, len(playerMsg.message.getChunksMessage.Coords))
-	for _, coord := range playerMsg.message.getChunksMessage.Coords {
-		if coord.X < 0 || coord.Y < 0 || coord.X >= e.w.Width || coord.Y >= e.w.Height {
+	chunks := make([]*world.Chunk, 0, len(playerMsg.message.getChunksMessage.Positions))
+	for _, pos := range playerMsg.message.getChunksMessage.Positions {
+		chunkStartX := pos.X * world.ChunkSize
+		chunkStartY := pos.Y * world.ChunkSize
+
+		if pos.X < 0 || pos.Y < 0 || chunkStartX >= e.w.Width || chunkStartY >= e.w.Height {
 			continue
 		}
-		chunks = append(chunks, e.w.ChunkAt(coord))
+		chunks = append(chunks, e.w.ChunkAt(pos))
 	}
 	*playerMsg.responseCh <- outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}
 	entry.Debugf("Player requested chunks")
-}
-func (e *Engine) getTrainsInRegion(camX, camY int) []*trains.Train {
-	return e.w.Trains
 }

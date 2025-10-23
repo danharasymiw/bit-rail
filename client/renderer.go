@@ -13,7 +13,7 @@ type ChatMessage struct {
 }
 
 type Renderer interface {
-	Render(camX, camY int, chatMessages []ChatMessage)
+	Render(camPos world.Pos, chatMessages []ChatMessage)
 	Screen() tcell.Screen
 }
 
@@ -33,7 +33,7 @@ func (r *SimpleRenderer) Screen() tcell.Screen {
 	return r.screen
 }
 
-func (r *SimpleRenderer) Render(camX, camY int, chatMessages []ChatMessage) {
+func (r *SimpleRenderer) Render(camPos world.Pos, chatMessages []ChatMessage) {
 	termWidth, termHeight := r.screen.Size()
 
 	infoPanelWidth := 35
@@ -41,45 +41,44 @@ func (r *SimpleRenderer) Render(camX, camY int, chatMessages []ChatMessage) {
 	worldWidth := termWidth - infoPanelWidth
 	worldHeight := termHeight - chatPanelHeight
 
-	r.renderRegion(camX, camY, worldWidth, worldHeight)
-	r.renderTrains(camX, camY, worldWidth, worldHeight)
+	r.renderRegion(camPos, worldWidth, worldHeight)
+	r.renderTrains(camPos, worldWidth, worldHeight)
 	r.renderInfoPanel(worldWidth, 0, infoPanelWidth, worldHeight)
 	r.renderChatPanel(0, worldHeight, termWidth, chatPanelHeight, chatMessages)
 
 	r.screen.Show()
 }
 
-func (r *SimpleRenderer) renderRegion(x, y, width, height int) {
-	for relY, row := range r.w.Tiles[y : y+height] {
-		for relX, t := range row[x : x+width] {
-			worldX := x + relX
-			worldY := y + relY
-			ch, style := r.getTileChar(worldX, worldY, t)
+func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
+	for relY, row := range r.w.Tiles[pos.Y : pos.Y+height] {
+		for relX, tile := range row[pos.X : pos.X+width] {
+			worldPos := world.Pos{X: pos.X + relX, Y: pos.Y + relY}
+			ch, style := r.getTileChar(worldPos, tile)
 			screenY := height - 1 - relY // Flip Y
 			r.screen.SetContent(relX, screenY, ch, nil, style)
 		}
 	}
 }
 
-func (r *SimpleRenderer) renderTrains(x, y, width, height int) {
+func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
 	for _, t := range r.w.Trains {
 		// Assuming train limits of 100 - check the first car to see if its
 		// even possible to be on screen
 		if len(t.Cars) > 0 {
 			c := t.Cars[0]
-			if c.X < x-100 || c.X >= x+width+100 || c.Y < y-100 || c.Y >= y+height+100 {
+			if c.X < pos.X-100 || c.X >= pos.X+width+100 || c.Y < pos.Y-100 || c.Y >= pos.Y+height+100 {
 				continue // Skip this train
 			}
 		}
 		for _, c := range t.Cars {
-			if c.X < x || c.X >= x+width || c.Y < y || c.Y >= y+height {
+			if c.X < pos.X || c.X >= pos.X+width || c.Y < pos.Y || c.Y >= pos.Y+height {
 				continue // Skip this car
 			}
 
 			ch, col := r.getTrainCarChar(c)
 			style := tcell.StyleDefault.Foreground(col)
-			screenX := c.X - x
-			screenY := height - 1 - (c.Y - y)
+			screenX := c.X - pos.X
+			screenY := height - 1 - (c.Y - pos.Y)
 
 			r.screen.SetContent(screenX, screenY, ch, nil, style)
 		}
@@ -116,26 +115,26 @@ var (
 	}
 )
 
-func (r *SimpleRenderer) getTileChar(x, y int, t *types.Tile) (rune, tcell.Style) {
+func (r *SimpleRenderer) getTileChar(pos world.Pos, t *types.Tile) (rune, tcell.Style) {
 	var ch rune
 	var fgCol tcell.Color
 	switch t.Type {
 	case types.TileGrass:
-		ch = grassChars[(x^y)%len(grassChars)]
-		fgCol = grassColors[(x^y)%len(grassColors)]
+		ch = grassChars[(pos.X^pos.Y)%len(grassChars)]
+		fgCol = grassColors[(pos.X^pos.Y)%len(grassColors)]
 	case types.TileWater:
-		ch = waterChars[(x^y)%len(waterChars)]
-		fgCol = waterColors[(x^y)%len(waterColors)]
+		ch = waterChars[(pos.X^pos.Y)%len(waterChars)]
+		fgCol = waterColors[(pos.X^pos.Y)%len(waterColors)]
 	case types.TileTree:
-		ch = treeChars[(x^y)%len(treeChars)]
-		fgCol = treeColors[(x^y)%len(treeColors)]
+		ch = treeChars[(pos.X^pos.Y)%len(treeChars)]
+		fgCol = treeColors[(pos.X^pos.Y)%len(treeColors)]
 	case types.TileMountain:
-		ch = mountainChars[(x^y)%len(mountainChars)]
-		fgCol = mountainColors[(x^y)%len(mountainColors)]
+		ch = mountainChars[(pos.X^pos.Y)%len(mountainChars)]
+		fgCol = mountainColors[(pos.X^pos.Y)%len(mountainColors)]
 
 	case types.TileTrack:
 		var trackChar rune
-		track := r.w.Tracks[t]
+		track := r.w.Tracks[pos]
 		switch track.Direction {
 		case types.DirNorth | types.DirSouth:
 			trackChar = '║' // vertical

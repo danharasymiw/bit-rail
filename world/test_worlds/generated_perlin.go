@@ -10,20 +10,20 @@ func NewPerlinWorld(seed, smoothness int64) *world.World {
 	w := world.New(500, 500)
 	world.Generate(w, seed)
 
-	w.AddTrack(0, 0, types.DirNorth|types.DirSouth|types.DirEast|types.DirWest)
+	w.AddTrack(world.Pos{X: 0, Y: 0}, &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest})
 
 	for x := 35; x < 80; x++ {
-		w.AddTrack(x, 20, types.DirEast|types.DirWest)
-		w.AddTrack(x, 55, types.DirEast|types.DirWest)
+		w.AddTrack(world.Pos{X: x, Y: 20}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(world.Pos{X: x, Y: 55}, &types.Track{Direction: types.DirEast | types.DirWest})
 	}
 	for y := 20; y < 56; y++ {
-		w.AddTrack(35, y, types.DirNorth|types.DirSouth)
-		w.AddTrack(80, y, types.DirNorth|types.DirSouth)
+		w.AddTrack(world.Pos{X: 35, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(world.Pos{X: 80, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
 	}
-	w.AddTrack(35, 20, types.DirNorth|types.DirEast)
-	w.AddTrack(80, 20, types.DirNorth|types.DirWest)
-	w.AddTrack(35, 55, types.DirSouth|types.DirEast)
-	w.AddTrack(80, 55, types.DirSouth|types.DirWest)
+	w.AddTrack(world.Pos{X: 35, Y: 20}, &types.Track{Direction: types.DirNorth | types.DirEast})
+	w.AddTrack(world.Pos{X: 80, Y: 20}, &types.Track{Direction: types.DirNorth | types.DirWest})
+	w.AddTrack(world.Pos{X: 35, Y: 55}, &types.Track{Direction: types.DirSouth | types.DirEast})
+	w.AddTrack(world.Pos{X: 80, Y: 55}, &types.Track{Direction: types.DirSouth | types.DirWest})
 
 	w.AddTrain(&trains.Train{
 		IsMoving: true,
@@ -62,20 +62,20 @@ func NewPerlinWorld(seed, smoothness int64) *world.World {
 	})
 
 	for x := 65; x < 90; x++ {
-		w.AddTrack(x, 40, types.DirEast|types.DirWest)
-		w.AddTrack(x, 60, types.DirEast|types.DirWest)
+		w.AddTrack(world.Pos{X: x, Y: 40}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(world.Pos{X: x, Y: 60}, &types.Track{Direction: types.DirEast | types.DirWest})
 	}
 	for y := 40; y < 61; y++ {
-		w.AddTrack(65, y, types.DirNorth|types.DirSouth)
-		w.AddTrack(90, y, types.DirNorth|types.DirSouth)
+		w.AddTrack(world.Pos{X: 65, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(world.Pos{X: 90, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
 	}
-	w.AddTrack(65, 40, types.DirNorth|types.DirEast)
-	w.AddTrack(90, 40, types.DirNorth|types.DirWest)
-	w.AddTrack(65, 60, types.DirSouth|types.DirEast)
-	w.AddTrack(90, 60, types.DirSouth|types.DirWest)
+	w.AddTrack(world.Pos{X: 65, Y: 40}, &types.Track{Direction: types.DirNorth | types.DirEast})
+	w.AddTrack(world.Pos{X: 90, Y: 40}, &types.Track{Direction: types.DirNorth | types.DirWest})
+	w.AddTrack(world.Pos{X: 65, Y: 60}, &types.Track{Direction: types.DirSouth | types.DirEast})
+	w.AddTrack(world.Pos{X: 90, Y: 60}, &types.Track{Direction: types.DirSouth | types.DirWest})
 
-	w.AddTrack(80, 40, types.DirSouth|types.DirNorth|types.DirEast|types.DirWest)
-	w.AddTrack(65, 55, types.DirSouth|types.DirNorth|types.DirEast|types.DirWest)
+	w.AddTrack(world.Pos{X: 80, Y: 40}, &types.Track{Direction: types.DirSouth | types.DirNorth | types.DirEast | types.DirWest})
+	w.AddTrack(world.Pos{X: 65, Y: 55}, &types.Track{Direction: types.DirSouth | types.DirNorth | types.DirEast | types.DirWest})
 
 	w.AddTrain(&trains.Train{
 		IsMoving: true,

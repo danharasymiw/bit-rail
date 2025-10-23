@@ -2,6 +2,7 @@ package message
 
 import (
 	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
 )
 
@@ -30,15 +31,16 @@ type ChunksMessage struct {
 }
 
 type GetChunksMessage struct {
-	Coords []world.ChunkCoord
+	Positions []world.Pos
 }
 type LoginMessage struct {
 	Username string
 }
 
 type InitialLoadMessage struct {
-	Width, Height    int
-	CameraX, CameraY int
-	Chunks           []*world.Chunk
-	Trains           []*trains.Train
+	Width, Height int
+	CameraPos     world.Pos
+	Chunks        []*world.Chunk
+	Trains        []*trains.Train
+	Tracks        map[world.Pos]*types.Track
 }

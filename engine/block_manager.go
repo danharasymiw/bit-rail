@@ -20,7 +20,7 @@ func (bm *blockManager) calculateBlock(x, y int, track *types.Track) *types.Bloc
 
 	type QueueItem struct {
 		track       *types.Track
-		x, y        int
+		pos         world.Pos
 		enteredFrom types.Dir
 		distance    int
 	}
@@ -29,8 +29,7 @@ func (bm *blockManager) calculateBlock(x, y int, track *types.Track) *types.Bloc
 	queue = append(queue,
 		QueueItem{
 			track:       track,
-			x:           x,
-			y:           y,
+			pos:         world.Pos{X: x, Y: y},
 			enteredFrom: types.OppositeDir(track.SignalDir),
 			distance:    0,
 		})
@@ -66,16 +65,16 @@ func (bm *blockManager) calculateBlock(x, y int, track *types.Track) *types.Bloc
 				continue
 			}
 
-			nextX, nextY := nextPos(curr.x, curr.y, d)
-			neighbourTile := bm.w.TileAt(nextX, nextY)
+			nextPos := nextPos(curr.pos, d)
+			neighbourTile := bm.w.TileAt(nextPos)
+			// TODO: do we really need this check? We can just check if the track is in the map?
 			if neighbourTile.Type != types.TileTrack {
 				continue
 			}
-			if neighbour := bm.w.Tracks[neighbourTile]; neighbour.Direction&types.OppositeDir(d) != 0 {
+			if neighbour := bm.w.Tracks[nextPos]; neighbour.Direction&types.OppositeDir(d) != 0 {
 				queue = append(queue, QueueItem{
 					track:       neighbour,
-					x:           nextX,
-					y:           nextY,
+					pos:         nextPos,
 					enteredFrom: types.OppositeDir(d),
 					distance:    curr.distance + 1,
 				})

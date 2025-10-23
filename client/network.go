@@ -15,9 +15,9 @@ type incomingMessage struct {
 }
 
 type outgoingMessage struct {
-	loginMessage    *message.LoginMessage
-	chatMessage     *message.ChatMessage
-	getChunkMessage *message.GetChunksMessage
+	loginMessage     *message.LoginMessage
+	chatMessage      *message.ChatMessage
+	getChunksMessage *message.GetChunksMessage
 }
 
 type clientNetworkManager struct {
@@ -103,9 +103,9 @@ func (nm *clientNetworkManager) writeLoop() {
 		} else if outgoing.chatMessage != nil {
 			msgType = message.MessageTypeChat
 			data, err = json.Marshal(outgoing.chatMessage)
-		} else if outgoing.getChunkMessage != nil {
+		} else if outgoing.getChunksMessage != nil {
 			msgType = message.MessageTypeGetChunks
-			data, err = json.Marshal(outgoing.getChunkMessage)
+			data, err = json.Marshal(outgoing.getChunksMessage)
 		} else {
 			logrus.Warn("Unknown outgoing message type")
 			continue
