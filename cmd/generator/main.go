@@ -158,10 +158,14 @@ func generateSerializer(typeName, pkgName string, structType *ast.StructType) st
 				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
 			} else {
-				// Non-primitive type - call its serializer
-				// Handles: Dir (alias), Config (same-pkg struct), types.Tile (cross-pkg struct)
+				// Non primitive type - call its serializer
 				serializerName := getSerializerName(fieldType)
-				builder.WriteString(fmt.Sprintf("\tif err := write%s(w, &v.%s); err != nil {\n", serializerName, fieldName))
+				// If field is a pointer don't add &
+				fieldRef := fmt.Sprintf("&v.%s", fieldName)
+				if strings.HasPrefix(fieldType, "*") {
+					fieldRef = fmt.Sprintf("v.%s", fieldName)
+				}
+				builder.WriteString(fmt.Sprintf("\tif err := write%s(w, %s); err != nil {\n", serializerName, fieldRef))
 				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
 			}
@@ -223,14 +227,17 @@ func generateSerializer(typeName, pkgName string, structType *ast.StructType) st
 				builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
 			} else {
-				// Non-primitive type - call its serializer
-				// Handles: Dir (alias), Config (same-pkg struct), types.Tile (cross-pkg struct)
 				serializerName := getSerializerName(fieldType)
 				builder.WriteString(fmt.Sprintf("\t%sVal, err := read%s(r)\n", fieldName, serializerName))
 				builder.WriteString("\tif err != nil {\n")
 				builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
-				builder.WriteString(fmt.Sprintf("\tv.%s = *%sVal\n", fieldName, fieldName))
+				// If field is a pointer assign directly otherwise dereference
+				if strings.HasPrefix(fieldType, "*") {
+					builder.WriteString(fmt.Sprintf("\tv.%s = %sVal\n", fieldName, fieldName))
+				} else {
+					builder.WriteString(fmt.Sprintf("\tv.%s = *%sVal\n", fieldName, fieldName))
+				}
 			}
 		}
 	}

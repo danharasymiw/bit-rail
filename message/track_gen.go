@@ -19,7 +19,7 @@ func writeTrack(w io.Writer, v *types.Track) error {
 	if err := writeDir(w, &v.SignalDir); err != nil {
 		return fmt.Errorf("error writing SignalDir: %v", err)
 	}
-	if err := writeBlock(w, &v.Block); err != nil {
+	if err := writeBlock(w, v.Block); err != nil {
 		return fmt.Errorf("error writing Block: %v", err)
 	}
 	return nil
@@ -44,6 +44,6 @@ func readTrack(r io.Reader) (*types.Track, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading Block: %v", err)
 	}
-	v.Block = *BlockVal
+	v.Block = BlockVal
 	return v, nil
 }
