@@ -57,6 +57,7 @@ func OppositeDir(d Dir) Dir {
 	}
 }
 
+//go:generate go run ../cmd/generator/main.go -type=Tile -output=../message/tile_gen.go
 type Tile struct {
 	Type TileType
 }

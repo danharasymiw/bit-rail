@@ -4,24 +4,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type BlockID uuid.UUID
-
 // Block represents a section of track
 // Blocks are defined by the area between signals
 // If one of these tiles in a section is removed/modified, a block needs to be recalculated
 // Only one train is allowed to be inside of a block at a time
+//go:generate go run ../cmd/generator/main.go -type=Block -output=../message/block_gen.go
 type Block struct {
-	ID         BlockID
-	OccupiedBy Occupier
+	ID         uuid.UUID
+	OccupiedBy uuid.UUID // train id if occupied
 }
 
 func NewBlock() *Block {
 	return &Block{
-		ID: BlockID(uuid.New()),
+		ID: uuid.New(),
 	}
-}
-
-// Occupier is an entity that occupies a block
-type Occupier interface {
-	ID() string
 }

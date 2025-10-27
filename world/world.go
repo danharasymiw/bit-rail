@@ -1,10 +1,6 @@
 package world
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 )
@@ -12,21 +8,21 @@ import (
 const ChunkSize = 64
 
 type World struct {
-	Width, Height int
+	Width, Height uint16
 	Tiles         [][]*types.Tile
 	Tracks        map[Pos]*types.Track
 	Trains        []*trains.Train
-	Occupied      map[int]bool
+	Occupied      map[uint16]bool
 }
 
-func New(width, height int) *World {
+func New(width, height uint16) *World {
 	w := &World{
 		Width:    width,
 		Height:   height,
 		Tiles:    make([][]*types.Tile, height),
 		Tracks:   make(map[Pos]*types.Track),
 		Trains:   make([]*trains.Train, 0),
-		Occupied: make(map[int]bool),
+		Occupied: make(map[uint16]bool),
 	}
 
 	for y := range w.Tiles {
@@ -46,33 +42,14 @@ func (w *World) TileAt(pos Pos) *types.Tile {
 
 // TODO: Maybe we move this to a different package. Feels bad
 // having custom marshal logic in this package
+//
+//go:generate go run ../cmd/generator/main.go -type=Pos -output=../message/pos_gen.go
 type Pos struct {
-	X, Y int
+	X uint16
+	Y uint16
 }
 
-func (p Pos) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("%d,%d", p.X, p.Y)), nil
-}
-
-func (p *Pos) UnmarshalText(data []byte) error {
-	parts := strings.Split(string(data), ",")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid position: %q", data)
-	}
-
-	var err error
-	p.X, err = strconv.Atoi(parts[0])
-	if err != nil {
-		return fmt.Errorf("invalid x value: %v", err)
-	}
-	p.Y, err = strconv.Atoi(parts[1])
-	if err != nil {
-		return fmt.Errorf("invalid y value: %v", err)
-	}
-
-	return nil
-}
-
+//go:generate go run ../cmd/generator/main.go -type=Chunk -output=../message/chunk_gen.go
 type Chunk struct {
 	Pos   Pos
 	Tiles []*types.Tile
@@ -125,7 +102,7 @@ func (w *World) UnsetOccupied(pos Pos) {
 	w.Occupied[w.occupiedIndex(pos)] = false
 }
 
-func (w *World) occupiedIndex(pos Pos) int {
+func (w *World) occupiedIndex(pos Pos) uint16 {
 	return pos.Y*w.Width + pos.X
 }
 
