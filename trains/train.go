@@ -16,6 +16,7 @@ type Train struct {
 	Cars []*TrainCar
 }
 
+//go:generate go run ../cmd/generator/main.go -type=CarType -output=../message/car_type_gen.go
 type CarType uint8
 
 const (

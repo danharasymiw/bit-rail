@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/trains"
-	"github.com/danharasymiw/bit-rail/types"
 	"github.com/google/uuid"
 )
 
 // Exists for two reasons:
 // 1. To avoid having to type LittleEndian every time we write/read binary
-// 2. Makes the binary serialization code easier since we don't have to 
+// 2. Makes the binary serialization code easier since we don't have to
 // decide whether or not to import binary/encoding
 func binaryWrite(w io.Writer, v any) error {
 	return binary.Write(w, binary.LittleEndian, v)
@@ -63,53 +61,4 @@ func readUUID(r io.Reader) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("error reading UUID: %v", err)
 	}
 	return id, nil
-}
-
-func writeTileType(w io.Writer, v *types.TileType) error {
-	if err := binaryWrite(w, uint8(*v)); err != nil {
-		return fmt.Errorf("error writing TileType: %v", err)
-	}
-	return nil
-}
-
-func readTileType(r io.Reader) (*types.TileType, error) {
-	var b uint8
-	if err := binaryRead(r, &b); err != nil {
-		return nil, fmt.Errorf("error reading TileType: %v", err)
-	}
-	v := types.TileType(b)
-	return &v, nil
-}
-
-func writeDir(w io.Writer, v *types.Dir) error {
-	// Dir is uint8, so just use binary.Write - simple and efficient for single byte
-	if err := binaryWrite(w,  uint8(*v)); err != nil {
-		return fmt.Errorf("error writing Dir: %v", err)
-	}
-	return nil
-}
-
-func readDir(r io.Reader) (*types.Dir, error) {
-	var b uint8
-	if err := binaryRead(r, &b); err != nil {
-		return nil, fmt.Errorf("error reading Dir: %v", err)
-	}
-	v := types.Dir(b)
-	return &v, nil
-}
-
-func writeCarType(w io.Writer, v *trains.CarType) error {
-	if err := binaryWrite(w,  uint8(*v)); err != nil {
-		return fmt.Errorf("error writing CarType: %v", err)
-	}
-	return nil
-}
-
-func readCarType(r io.Reader) (*trains.CarType, error) {
-	var b uint8
-	if err := binaryRead(r,  &b); err != nil {
-		return nil, fmt.Errorf("error reading CarType: %v", err)
-	}
-	v := trains.CarType(b)
-	return &v, nil
 }
