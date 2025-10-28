@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate go run ../cmd/generator/main.go -type=Train -output=../message/train_gen.go
 type Train struct {
 	ID           uuid.UUID
 	IsReversing  bool
@@ -16,7 +15,6 @@ type Train struct {
 	Cars []*TrainCar
 }
 
-//go:generate go run ../cmd/generator/main.go -type=CarType -output=../message/car_type_gen.go
 type CarType uint8
 
 const (
@@ -25,7 +23,6 @@ const (
 	CarTypePassenger
 )
 
-//go:generate go run ../cmd/generator/main.go -type=TrainCar -output=../message/train_car_gen.go
 type TrainCar struct {
 	X, Y      uint16
 	Direction types.Dir

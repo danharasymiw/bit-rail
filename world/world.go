@@ -42,14 +42,11 @@ func (w *World) TileAt(pos Pos) *types.Tile {
 
 // TODO: Maybe we move this to a different package. Feels bad
 // having custom marshal logic in this package
-//
-//go:generate go run ../cmd/generator/main.go -type=Pos -output=../message/pos_gen.go
 type Pos struct {
 	X uint16
 	Y uint16
 }
 
-//go:generate go run ../cmd/generator/main.go -type=Chunk -output=../message/chunk_gen.go
 type Chunk struct {
 	Pos   Pos
 	Tiles []*types.Tile

@@ -14,6 +14,7 @@ import (
 var (
 	typeFlag   = flag.String("type", "", "Type name to generate serde for")
 	outputFlag = flag.String("output", "", "Output file path")
+	dirFlag    = flag.String("dir", ".", "Directory containing the type to parse")
 )
 
 func main() {
@@ -26,9 +27,9 @@ func main() {
 		log.Fatal("must specify -output flag")
 	}
 
-	// Parse the current package where generate was called
+	// Parse the specified package directory
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", nil, 0)
+	pkgs, err := parser.ParseDir(fset, *dirFlag, nil, 0)
 	if err != nil {
 		log.Fatalf("failed to parse package: %v", err)
 	}
@@ -66,7 +67,6 @@ func main() {
 	if structType == nil && aliasType == "" {
 		log.Fatalf("could not find type %s", *typeFlag)
 	}
-
 
 	qualifiedType := *typeFlag
 	// do not prefix the name with "message." since we're generating for the message package

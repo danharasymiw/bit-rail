@@ -4,7 +4,6 @@ import (
 	"strings"
 )
 
-//go:generate go run ../cmd/generator/main.go -type=TileType -output=../message/tile_type_gen.go
 type TileType uint8
 
 const (
@@ -16,7 +15,6 @@ const (
 	TileMountain
 )
 
-//go:generate go run ../cmd/generator/main.go -type=Dir -output=../message/dir_gen.go
 type Dir uint8
 
 const (
@@ -59,7 +57,6 @@ func OppositeDir(d Dir) Dir {
 	}
 }
 
-//go:generate go run ../cmd/generator/main.go -type=Tile -output=../message/tile_gen.go
 type Tile struct {
 	Type TileType
 }
