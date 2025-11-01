@@ -13,7 +13,7 @@ func writeWorldUpdateMessage(w io.Writer, v *WorldUpdateMessage) error {
 	if len(v.TilesUpdated) > 65535 {
 		return fmt.Errorf("TilesUpdated slice too long: %d", len(v.TilesUpdated))
 	}
-	if err := binaryWrite(w, uint16(len(v.TilesUpdated))); err != nil {
+	if err := binaryWrite(w, len(v.TilesUpdated)); err != nil {
 		return fmt.Errorf("error writing TilesUpdated length: %v", err)
 	}
 	for _, elem := range v.TilesUpdated {
@@ -24,7 +24,7 @@ func writeWorldUpdateMessage(w io.Writer, v *WorldUpdateMessage) error {
 	if len(v.TracksUpdated) > 65535 {
 		return fmt.Errorf("TracksUpdated slice too long: %d", len(v.TracksUpdated))
 	}
-	if err := binaryWrite(w, uint16(len(v.TracksUpdated))); err != nil {
+	if err := binaryWrite(w, len(v.TracksUpdated)); err != nil {
 		return fmt.Errorf("error writing TracksUpdated length: %v", err)
 	}
 	for _, elem := range v.TracksUpdated {
@@ -35,7 +35,7 @@ func writeWorldUpdateMessage(w io.Writer, v *WorldUpdateMessage) error {
 	if len(v.Trains) > 65535 {
 		return fmt.Errorf("Trains slice too long: %d", len(v.Trains))
 	}
-	if err := binaryWrite(w, uint16(len(v.Trains))); err != nil {
+	if err := binaryWrite(w, len(v.Trains)); err != nil {
 		return fmt.Errorf("error writing Trains length: %v", err)
 	}
 	for _, elem := range v.Trains {

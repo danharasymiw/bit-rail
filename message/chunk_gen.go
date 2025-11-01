@@ -17,7 +17,7 @@ func writeChunk(w io.Writer, v *world.Chunk) error {
 	if len(v.Tiles) > 65535 {
 		return fmt.Errorf("Tiles slice too long: %d", len(v.Tiles))
 	}
-	if err := binaryWrite(w, uint16(len(v.Tiles))); err != nil {
+	if err := binaryWrite(w, len(v.Tiles)); err != nil {
 		return fmt.Errorf("error writing Tiles length: %v", err)
 	}
 	for _, elem := range v.Tiles {

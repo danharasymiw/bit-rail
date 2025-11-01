@@ -8,21 +8,21 @@ import (
 const ChunkSize = 64
 
 type World struct {
-	Width, Height uint16
+	Width, Height int
 	Tiles         [][]*types.Tile
 	Tracks        map[Pos]*types.Track
 	Trains        []*trains.Train
-	Occupied      map[uint16]bool
+	Occupied      map[Pos]bool
 }
 
-func New(width, height uint16) *World {
+func New(width, height int) *World {
 	w := &World{
 		Width:    width,
 		Height:   height,
 		Tiles:    make([][]*types.Tile, height),
 		Tracks:   make(map[Pos]*types.Track),
 		Trains:   make([]*trains.Train, 0),
-		Occupied: make(map[uint16]bool),
+		Occupied: make(map[Pos]bool),
 	}
 
 	for y := range w.Tiles {
@@ -43,8 +43,8 @@ func (w *World) TileAt(pos Pos) *types.Tile {
 // TODO: Maybe we move this to a different package. Feels bad
 // having custom marshal logic in this package
 type Pos struct {
-	X uint16
-	Y uint16
+	X int `binary:"uint16"`
+	Y int `binary:"uint16"`
 }
 
 type Chunk struct {
@@ -54,19 +54,14 @@ type Chunk struct {
 
 func (w *World) ChunkAt(chunkPos Pos) *Chunk {
 	tiles := make([]*types.Tile, 0, ChunkSize*ChunkSize)
-	tracks := make(map[Pos]*types.Track)
 
 	for y := chunkPos.Y * ChunkSize; y < (chunkPos.Y+1)*ChunkSize; y++ {
 		for x := chunkPos.X * ChunkSize; x < (chunkPos.X+1)*ChunkSize; x++ {
 			// Bounds check to prevent index out of range
-			if x >= 0 && x < w.Width && y >= 0 && y < w.Height {
+			if x < w.Width && y < w.Height {
 				tile := w.Tiles[y][x]
 				tiles = append(tiles, tile)
 
-				// If this tile has a track, include it in the tracks map using position
-				if track, exists := w.Tracks[Pos{X: x, Y: y}]; exists {
-					tracks[Pos{X: x, Y: y}] = track
-				}
 			} else {
 				// For out-of-bounds tiles, create a default grass tile
 				tiles = append(tiles, &types.Tile{Type: types.TileGrass})
@@ -88,19 +83,15 @@ func ChunkToTilePos(chunkPos Pos) Pos {
 }
 
 func (w *World) OccupiedAt(pos Pos) bool {
-	return w.Occupied[w.occupiedIndex(pos)]
+	return w.Occupied[pos]
 }
 
 func (w *World) SetOccupied(pos Pos) {
-	w.Occupied[w.occupiedIndex(pos)] = true
+	w.Occupied[pos] = true
 }
 
 func (w *World) UnsetOccupied(pos Pos) {
-	w.Occupied[w.occupiedIndex(pos)] = false
-}
-
-func (w *World) occupiedIndex(pos Pos) uint16 {
-	return pos.Y*w.Width + pos.X
+	w.Occupied[pos] = false
 }
 
 func (w *World) AddTrack(pos Pos, track *types.Track) {

@@ -39,7 +39,7 @@ type ChunksMessage struct {
 }
 
 type GetChunksMessage struct {
-	Positions []*world.Pos
+	Positions []world.Pos
 }
 
 type LoginMessage struct {
@@ -47,7 +47,7 @@ type LoginMessage struct {
 }
 
 type InitialLoadMessage struct {
-	Width, Height uint16
+	Width, Height int `binary:"uint16"`
 	CameraPos     world.Pos
 	Chunks        []*world.Chunk
 	Trains        []*trains.Train
@@ -69,4 +69,12 @@ type TileUpdate struct {
 type TrackUpdate struct {
 	Pos   world.Pos
 	Track types.Track
+}
+
+func TrackMapToTrackUpdate(trackMap map[world.Pos]*types.Track) []*TrackUpdate {
+	trackUpdates := make([]*TrackUpdate, len(trackMap))
+	for pos, track := range trackMap {
+		trackUpdates = append(trackUpdates, &TrackUpdate{Pos: pos, Track: *track})
+	}
+	return trackUpdates
 }

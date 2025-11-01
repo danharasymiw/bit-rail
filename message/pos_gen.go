@@ -10,10 +10,16 @@ import (
 )
 
 func writePos(w io.Writer, v *world.Pos) error {
-	if err := binaryWrite(w, v.X); err != nil {
+	if v.X < 0 || v.X > 65535 {
+		return fmt.Errorf("X out of uint16 range: %d", v.X)
+	}
+	if err := binaryWrite(w, uint16(v.X)); err != nil {
 		return fmt.Errorf("error writing X: %v", err)
 	}
-	if err := binaryWrite(w, v.Y); err != nil {
+	if v.Y < 0 || v.Y > 65535 {
+		return fmt.Errorf("Y out of uint16 range: %d", v.Y)
+	}
+	if err := binaryWrite(w, uint16(v.Y)); err != nil {
 		return fmt.Errorf("error writing Y: %v", err)
 	}
 	return nil
@@ -21,11 +27,15 @@ func writePos(w io.Writer, v *world.Pos) error {
 
 func readPos(r io.Reader) (*world.Pos, error) {
 	v := &world.Pos{}
-	if err := binaryRead(r, &v.X); err != nil {
+	var XVal uint16
+	if err := binaryRead(r, &XVal); err != nil {
 		return nil, fmt.Errorf("error reading X: %v", err)
 	}
-	if err := binaryRead(r, &v.Y); err != nil {
+	v.X = int(XVal)
+	var YVal uint16
+	if err := binaryRead(r, &YVal); err != nil {
 		return nil, fmt.Errorf("error reading Y: %v", err)
 	}
+	v.Y = int(YVal)
 	return v, nil
 }

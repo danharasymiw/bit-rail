@@ -13,7 +13,7 @@ func writeChunksMessage(w io.Writer, v *ChunksMessage) error {
 	if len(v.Chunks) > 65535 {
 		return fmt.Errorf("Chunks slice too long: %d", len(v.Chunks))
 	}
-	if err := binaryWrite(w, uint16(len(v.Chunks))); err != nil {
+	if err := binaryWrite(w, len(v.Chunks)); err != nil {
 		return fmt.Errorf("error writing Chunks length: %v", err)
 	}
 	for _, elem := range v.Chunks {

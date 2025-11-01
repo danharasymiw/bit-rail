@@ -10,10 +10,16 @@ import (
 )
 
 func writeTrainCar(w io.Writer, v *trains.TrainCar) error {
-	if err := binaryWrite(w, v.X); err != nil {
+	if v.X < 0 || v.X > 65535 {
+		return fmt.Errorf("X out of uint16 range: %d", v.X)
+	}
+	if err := binaryWrite(w, uint16(v.X)); err != nil {
 		return fmt.Errorf("error writing X: %v", err)
 	}
-	if err := binaryWrite(w, v.Y); err != nil {
+	if v.Y < 0 || v.Y > 65535 {
+		return fmt.Errorf("Y out of uint16 range: %d", v.Y)
+	}
+	if err := binaryWrite(w, uint16(v.Y)); err != nil {
 		return fmt.Errorf("error writing Y: %v", err)
 	}
 	if err := writeDir(w, &v.Direction); err != nil {
@@ -27,12 +33,16 @@ func writeTrainCar(w io.Writer, v *trains.TrainCar) error {
 
 func readTrainCar(r io.Reader) (*trains.TrainCar, error) {
 	v := &trains.TrainCar{}
-	if err := binaryRead(r, &v.X); err != nil {
+	var XVal uint16
+	if err := binaryRead(r, &XVal); err != nil {
 		return nil, fmt.Errorf("error reading X: %v", err)
 	}
-	if err := binaryRead(r, &v.Y); err != nil {
+	v.X = int(XVal)
+	var YVal uint16
+	if err := binaryRead(r, &YVal); err != nil {
 		return nil, fmt.Errorf("error reading Y: %v", err)
 	}
+	v.Y = int(YVal)
 	DirectionVal, err := readDir(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Direction: %v", err)

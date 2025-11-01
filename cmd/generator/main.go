@@ -8,6 +8,8 @@ import (
 	"go/token"
 	"log"
 	"os"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -26,6 +28,8 @@ func main() {
 	if *outputFlag == "" {
 		log.Fatal("must specify -output flag")
 	}
+
+	fmt.Printf("Generating serializer for %s\n", *outputFlag)
 
 	// Parse the specified package directory
 	fset := token.NewFileSet()
@@ -83,7 +87,7 @@ func main() {
 	}
 
 	// Write output
-	if err := os.WriteFile(*outputFlag, []byte(code), 0644); err != nil {
+	if err := os.WriteFile(*outputFlag, []byte(code), 0o644); err != nil {
 		log.Fatalf("failed to write output: %v", err)
 	}
 
@@ -134,9 +138,26 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 	builder.WriteString(fmt.Sprintf("func write%s(w io.Writer, v *%s) error {\n", typeName, qualifiedType))
 
 	for _, field := range structType.Fields.List {
+		binaryTag := ""
+		if field.Tag != nil {
+			binaryTag = getBinaryTag(field.Tag)
+		}
+
 		for _, name := range field.Names {
 			fieldName := name.Name
 			fieldType := getTypeName(field.Type)
+
+			// Check if field should be serialized as uint16
+			if binaryTag == "uint16" && fieldType == "int" {
+				// int field serialized as uint16 - add validation and conversion
+				builder.WriteString(fmt.Sprintf("\tif v.%s < 0 || v.%s > 65535 {\n", fieldName, fieldName))
+				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"%s out of uint16 range: %%d\", v.%s)\n", fieldName, fieldName))
+				builder.WriteString("\t}\n")
+				builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, uint16(v.%s)); err != nil {\n", fieldName))
+				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
+				builder.WriteString("\t}\n")
+				continue
+			}
 
 			if fieldType == "string" {
 				// String type - write length, then string
@@ -153,14 +174,22 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				elemType, _ := getSliceElementType(field.Type)
 				serializerName := getSerializerName(elemType)
 
+				// Determine if element is a pointer and how to pass it to serializer
+				isElemPointer := strings.HasPrefix(elemType, "*")
+				elemRef := "elem"
+				if !isElemPointer {
+					// Element is a value type, but serializer expects a pointer - take address
+					elemRef = "&elem"
+				}
+
 				builder.WriteString(fmt.Sprintf("\tif len(v.%s) > 65535 {\n", fieldName))
 				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"%s slice too long: %%d\", len(v.%s))\n", fieldName, fieldName))
 				builder.WriteString("\t}\n")
-				builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, uint16(len(v.%s))); err != nil {\n", fieldName))
+				builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, len(v.%s)); err != nil {\n", fieldName))
 				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s length: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
 				builder.WriteString(fmt.Sprintf("\tfor _, elem := range v.%s {\n", fieldName))
-				builder.WriteString(fmt.Sprintf("\t\tif err := write%s(w, elem); err != nil {\n", serializerName))
+				builder.WriteString(fmt.Sprintf("\t\tif err := write%s(w, %s); err != nil {\n", serializerName, elemRef))
 				builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"error writing %s element: %%v\", err)\n", fieldName))
 				builder.WriteString("\t\t}\n")
 				builder.WriteString("\t}\n")
@@ -192,9 +221,25 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 	builder.WriteString(fmt.Sprintf("\tv := &%s{}\n", qualifiedType))
 
 	for _, field := range structType.Fields.List {
+		binaryTag := ""
+		if field.Tag != nil {
+			binaryTag = getBinaryTag(field.Tag)
+		}
+
 		for _, name := range field.Names {
 			fieldName := name.Name
 			fieldType := getTypeName(field.Type)
+
+			// Check if field should be deserialized from uint16
+			if binaryTag == "uint16" && fieldType == "int" {
+				// Read as uint16, convert to int
+				builder.WriteString(fmt.Sprintf("\tvar %sVal uint16\n", fieldName))
+				builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &%sVal); err != nil {\n", fieldName))
+				builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+				builder.WriteString("\t}\n")
+				builder.WriteString(fmt.Sprintf("\tv.%s = int(%sVal)\n", fieldName, fieldName))
+				continue
+			}
 
 			if fieldType == "string" {
 				// String type - read length, then string
@@ -215,6 +260,14 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				elemType, _ := getSliceElementType(field.Type)
 				serializerName := getSerializerName(elemType)
 
+				// Determine if element is a pointer and how to assign it
+				isElemPointer := strings.HasPrefix(elemType, "*")
+				assignment := "elem"
+				if !isElemPointer {
+					// Element is a value type, but serializer returns a pointer - dereference
+					assignment = "*elem"
+				}
+
 				qualifiedFieldType := fieldType
 				// Same package type, need to qualify it
 				if !strings.Contains(fieldType, ".") && pkgName != "message" {
@@ -231,7 +284,7 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				builder.WriteString("\t\tif err != nil {\n")
 				builder.WriteString(fmt.Sprintf("\t\t\treturn nil, fmt.Errorf(\"error reading %s element: %%v\", err)\n", fieldName))
 				builder.WriteString("\t\t}\n")
-				builder.WriteString(fmt.Sprintf("\t\tv.%s[i] = elem\n", fieldName))
+				builder.WriteString(fmt.Sprintf("\t\tv.%s[i] = %s\n", fieldName, assignment))
 				builder.WriteString("\t}\n")
 			} else if isPrimitiveType(fieldType) {
 				// Primitive type - use binaryRead
@@ -272,7 +325,7 @@ func getTypeName(expr ast.Expr) string {
 		// Slice type
 		return "[]" + getTypeName(t.Elt)
 	default:
-		return "unknown"
+		panic(fmt.Sprintf("Unexpected type name: %v", expr))
 	}
 }
 
@@ -345,4 +398,23 @@ func getSerializerName(typeName string) string {
 	typeName = strings.TrimPrefix(typeName, "*")
 	parts := strings.Split(typeName, ".")
 	return parts[len(parts)-1]
+}
+
+// getBinaryTag extracts the value from a struct tag like `binary:"uint16"`
+func getBinaryTag(tag *ast.BasicLit) string {
+	if tag == nil || tag.Kind != token.STRING {
+		return ""
+	}
+	// tag.Value is a string literal like "`binary:\"uint16\"`"
+	// unquote it to get the actual tag string
+	tagStr, err := strconv.Unquote(tag.Value)
+	if err != nil {
+		return ""
+	}
+
+	structTag := reflect.StructTag(tagStr)
+	if value, ok := structTag.Lookup("binary"); ok {
+		return value
+	}
+	return ""
 }

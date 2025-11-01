@@ -6,15 +6,21 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/world"
 	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/world"
 )
 
 func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
-	if err := binaryWrite(w, v.Width); err != nil {
+	if v.Width < 0 || v.Width > 65535 {
+		return fmt.Errorf("Width out of uint16 range: %d", v.Width)
+	}
+	if err := binaryWrite(w, uint16(v.Width)); err != nil {
 		return fmt.Errorf("error writing Width: %v", err)
 	}
-	if err := binaryWrite(w, v.Height); err != nil {
+	if v.Height < 0 || v.Height > 65535 {
+		return fmt.Errorf("Height out of uint16 range: %d", v.Height)
+	}
+	if err := binaryWrite(w, uint16(v.Height)); err != nil {
 		return fmt.Errorf("error writing Height: %v", err)
 	}
 	if err := writePos(w, &v.CameraPos); err != nil {
@@ -23,7 +29,7 @@ func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 	if len(v.Chunks) > 65535 {
 		return fmt.Errorf("Chunks slice too long: %d", len(v.Chunks))
 	}
-	if err := binaryWrite(w, uint16(len(v.Chunks))); err != nil {
+	if err := binaryWrite(w, len(v.Chunks)); err != nil {
 		return fmt.Errorf("error writing Chunks length: %v", err)
 	}
 	for _, elem := range v.Chunks {
@@ -34,7 +40,7 @@ func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 	if len(v.Trains) > 65535 {
 		return fmt.Errorf("Trains slice too long: %d", len(v.Trains))
 	}
-	if err := binaryWrite(w, uint16(len(v.Trains))); err != nil {
+	if err := binaryWrite(w, len(v.Trains)); err != nil {
 		return fmt.Errorf("error writing Trains length: %v", err)
 	}
 	for _, elem := range v.Trains {
@@ -45,7 +51,7 @@ func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 	if len(v.Tracks) > 65535 {
 		return fmt.Errorf("Tracks slice too long: %d", len(v.Tracks))
 	}
-	if err := binaryWrite(w, uint16(len(v.Tracks))); err != nil {
+	if err := binaryWrite(w, len(v.Tracks)); err != nil {
 		return fmt.Errorf("error writing Tracks length: %v", err)
 	}
 	for _, elem := range v.Tracks {
@@ -58,12 +64,16 @@ func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 
 func readInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 	v := &InitialLoadMessage{}
-	if err := binaryRead(r, &v.Width); err != nil {
+	var WidthVal uint16
+	if err := binaryRead(r, &WidthVal); err != nil {
 		return nil, fmt.Errorf("error reading Width: %v", err)
 	}
-	if err := binaryRead(r, &v.Height); err != nil {
+	v.Width = int(WidthVal)
+	var HeightVal uint16
+	if err := binaryRead(r, &HeightVal); err != nil {
 		return nil, fmt.Errorf("error reading Height: %v", err)
 	}
+	v.Height = int(HeightVal)
 	CameraPosVal, err := readPos(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading CameraPos: %v", err)

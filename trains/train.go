@@ -24,7 +24,7 @@ const (
 )
 
 type TrainCar struct {
-	X, Y      uint16
+	X, Y      int `binary:"uint16"`
 	Direction types.Dir
 	Type      CarType
 }

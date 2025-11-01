@@ -28,7 +28,7 @@ func writeTrain(w io.Writer, v *trains.Train) error {
 	if len(v.Cars) > 65535 {
 		return fmt.Errorf("Cars slice too long: %d", len(v.Cars))
 	}
-	if err := binaryWrite(w, uint16(len(v.Cars))); err != nil {
+	if err := binaryWrite(w, len(v.Cars)); err != nil {
 		return fmt.Errorf("error writing Cars length: %v", err)
 	}
 	for _, elem := range v.Cars {

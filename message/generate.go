@@ -9,7 +9,7 @@ package message
 //go:generate go run ../cmd/generator/main.go -type=GetChunksMessage -output=get_chunks_message_gen.go
 //go:generate go run ../cmd/generator/main.go -type=LoginMessage -output=login_message_gen.go
 //go:generate go run ../cmd/generator/main.go -type=InitialLoadMessage -output=initial_load_message_gen.go
-//go:generate go run ../cmd/generator/main.go -type=WorldUpdateMessage -output=world_update_message.go
+//go:generate go run ../cmd/generator/main.go -type=WorldUpdateMessage -output=world_update_message_gen.go
 //go:generate go run ../cmd/generator/main.go -type=TileUpdate -output=tile_update_gen.go
 //go:generate go run ../cmd/generator/main.go -type=TrackUpdate -output=track_update_gen.go
 
@@ -28,4 +28,3 @@ package message
 // world package
 //go:generate go run ../cmd/generator/main.go -type=Pos -dir=../world -output=pos_gen.go
 //go:generate go run ../cmd/generator/main.go -type=Chunk -dir=../world -output=chunk_gen.go
-

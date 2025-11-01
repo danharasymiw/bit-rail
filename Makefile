@@ -14,4 +14,5 @@ generate: clean
 	@go generate ./...
 	@echo "Done!"
 
-
+run:
+	go run cmd/bit-rail/main.go
