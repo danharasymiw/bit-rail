@@ -135,7 +135,7 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 	}
 
 	builder.WriteString(")\n\n")
-	builder.WriteString(fmt.Sprintf("func write%s(w io.Writer, v *%s) error {\n", typeName, qualifiedType))
+	builder.WriteString(fmt.Sprintf("func Write%s(w io.Writer, v *%s) error {\n", typeName, qualifiedType))
 
 	for _, field := range structType.Fields.List {
 		binaryTag := ""
@@ -185,31 +185,50 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				builder.WriteString(fmt.Sprintf("\tif len(v.%s) > 65535 {\n", fieldName))
 				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"%s slice too long: %%d\", len(v.%s))\n", fieldName, fieldName))
 				builder.WriteString("\t}\n")
-				builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, len(v.%s)); err != nil {\n", fieldName))
-				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s length: %%v\", err)\n", fieldName))
-				builder.WriteString("\t}\n")
-				builder.WriteString(fmt.Sprintf("\tfor _, elem := range v.%s {\n", fieldName))
-				builder.WriteString(fmt.Sprintf("\t\tif err := write%s(w, %s); err != nil {\n", serializerName, elemRef))
-				builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"error writing %s element: %%v\", err)\n", fieldName))
-				builder.WriteString("\t\t}\n")
-				builder.WriteString("\t}\n")
+			builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, uint16(len(v.%s))); err != nil {\n", fieldName))
+			builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s length: %%v\", err)\n", fieldName))
+			builder.WriteString("\t}\n")
+		builder.WriteString(fmt.Sprintf("\tfor _, elem := range v.%s {\n", fieldName))
+		builder.WriteString(fmt.Sprintf("\t\tif err := Write%s(w, %s); err != nil {\n", serializerName, elemRef))
+			builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"error writing %s element: %%v\", err)\n", fieldName))
+			builder.WriteString("\t\t}\n")
+			builder.WriteString("\t}\n")
 			} else if isPrimitiveType(fieldType) {
 				// Primitive type - use binaryWrite
-				builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, v.%s); err != nil {\n", fieldName))
-				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
-				builder.WriteString("\t}\n")
-			} else {
-				// Non primitive type - call its serializer
-				serializerName := getSerializerName(fieldType)
-				// If field is a pointer don't add &
-				fieldRef := fmt.Sprintf("&v.%s", fieldName)
-				if strings.HasPrefix(fieldType, "*") {
-					fieldRef = fmt.Sprintf("v.%s", fieldName)
+				// int and uint are variable-sized, so convert to fixed-size types
+				writeValue := fmt.Sprintf("v.%s", fieldName)
+				if fieldType == "int" {
+					writeValue = fmt.Sprintf("int32(v.%s)", fieldName)
+				} else if fieldType == "uint" {
+					writeValue = fmt.Sprintf("uint32(v.%s)", fieldName)
 				}
-				builder.WriteString(fmt.Sprintf("\tif err := write%s(w, %s); err != nil {\n", serializerName, fieldRef))
+				builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, %s); err != nil {\n", writeValue))
 				builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
-			}
+		} else {
+		// Non primitive type - call its serializer
+		serializerName := getSerializerName(fieldType)
+		// If field is a pointer, make it optional
+		if strings.HasPrefix(fieldType, "*") {
+			fieldRef := fmt.Sprintf("v.%s", fieldName)
+			// Write boolean indicating if pointer is not nil
+			builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, v.%s != nil); err != nil {\n", fieldName))
+			builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s present flag: %%v\", err)\n", fieldName))
+			builder.WriteString("\t}\n")
+			// Only write if not nil
+			builder.WriteString(fmt.Sprintf("\tif v.%s != nil {\n", fieldName))
+			builder.WriteString(fmt.Sprintf("\tif err := Write%s(w, %s); err != nil {\n", serializerName, fieldRef))
+			builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
+			builder.WriteString("\t\t}\n")
+			builder.WriteString("\t}\n")
+		} else {
+			// Non-pointer field - always write
+			fieldRef := fmt.Sprintf("&v.%s", fieldName)
+			builder.WriteString(fmt.Sprintf("\tif err := Write%s(w, %s); err != nil {\n", serializerName, fieldRef))
+			builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
+			builder.WriteString("\t}\n")
+		}
+		}
 		}
 	}
 
@@ -217,7 +236,7 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 	builder.WriteString("}\n\n")
 
 	// Read function
-	builder.WriteString(fmt.Sprintf("func read%s(r io.Reader) (*%s, error) {\n", typeName, qualifiedType))
+	builder.WriteString(fmt.Sprintf("func Read%s(r io.Reader) (*%s, error) {\n", typeName, qualifiedType))
 	builder.WriteString(fmt.Sprintf("\tv := &%s{}\n", qualifiedType))
 
 	for _, field := range structType.Fields.List {
@@ -278,9 +297,9 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &%sLen); err != nil {\n", fieldName))
 				builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s length: %%v\", err)\n", fieldName))
 				builder.WriteString("\t}\n")
-				builder.WriteString(fmt.Sprintf("\tv.%s = make(%s, %sLen)\n", fieldName, qualifiedFieldType, fieldName))
-				builder.WriteString(fmt.Sprintf("\tfor i := range v.%s {\n", fieldName))
-				builder.WriteString(fmt.Sprintf("\t\telem, err := read%s(r)\n", serializerName))
+			builder.WriteString(fmt.Sprintf("\tv.%s = make(%s, %sLen)\n", fieldName, qualifiedFieldType, fieldName))
+			builder.WriteString(fmt.Sprintf("\tfor i := range v.%s {\n", fieldName))
+			builder.WriteString(fmt.Sprintf("\t\telem, err := Read%s(r)\n", serializerName))
 				builder.WriteString("\t\tif err != nil {\n")
 				builder.WriteString(fmt.Sprintf("\t\t\treturn nil, fmt.Errorf(\"error reading %s element: %%v\", err)\n", fieldName))
 				builder.WriteString("\t\t}\n")
@@ -288,22 +307,51 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				builder.WriteString("\t}\n")
 			} else if isPrimitiveType(fieldType) {
 				// Primitive type - use binaryRead
-				builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &v.%s); err != nil {\n", fieldName))
-				builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
-				builder.WriteString("\t}\n")
-			} else {
-				serializerName := getSerializerName(fieldType)
-				builder.WriteString(fmt.Sprintf("\t%sVal, err := read%s(r)\n", fieldName, serializerName))
-				builder.WriteString("\tif err != nil {\n")
-				builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
-				builder.WriteString("\t}\n")
-				// If field is a pointer assign directly otherwise dereference
-				if strings.HasPrefix(fieldType, "*") {
-					builder.WriteString(fmt.Sprintf("\tv.%s = %sVal\n", fieldName, fieldName))
+				// int and uint are variable-sized, so read as fixed-size types and convert
+				if fieldType == "int" {
+					builder.WriteString(fmt.Sprintf("\tvar %sVal int32\n", fieldName))
+					builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &%sVal); err != nil {\n", fieldName))
+					builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+					builder.WriteString("\t}\n")
+					builder.WriteString(fmt.Sprintf("\tv.%s = int(%sVal)\n", fieldName, fieldName))
+				} else if fieldType == "uint" {
+					builder.WriteString(fmt.Sprintf("\tvar %sVal uint32\n", fieldName))
+					builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &%sVal); err != nil {\n", fieldName))
+					builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+					builder.WriteString("\t}\n")
+					builder.WriteString(fmt.Sprintf("\tv.%s = uint(%sVal)\n", fieldName, fieldName))
 				} else {
-					builder.WriteString(fmt.Sprintf("\tv.%s = *%sVal\n", fieldName, fieldName))
+					builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &v.%s); err != nil {\n", fieldName))
+					builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+					builder.WriteString("\t}\n")
 				}
-			}
+	} else {
+	serializerName := getSerializerName(fieldType)
+	// If field is a pointer, make it optional
+	if strings.HasPrefix(fieldType, "*") {
+		// Read boolean indicating if pointer is present
+		presentFlag := fmt.Sprintf("%sPresent", fieldName)
+		builder.WriteString(fmt.Sprintf("\tvar %s bool\n", presentFlag))
+		builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &%s); err != nil {\n", presentFlag))
+		builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s present flag: %%v\", err)\n", fieldName))
+		builder.WriteString("\t}\n")
+		// Only read if present
+		builder.WriteString(fmt.Sprintf("\tif %s {\n", presentFlag))
+		builder.WriteString(fmt.Sprintf("\t\t%sVal, err := Read%s(r)\n", fieldName, serializerName))
+		builder.WriteString("\t\tif err != nil {\n")
+		builder.WriteString(fmt.Sprintf("\t\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+		builder.WriteString("\t\t}\n")
+		builder.WriteString(fmt.Sprintf("\t\tv.%s = %sVal\n", fieldName, fieldName))
+		builder.WriteString("\t}\n")
+	} else {
+		// Non-pointer field - always read
+		builder.WriteString(fmt.Sprintf("\t%sVal, err := Read%s(r)\n", fieldName, serializerName))
+		builder.WriteString("\tif err != nil {\n")
+		builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+		builder.WriteString("\t}\n")
+		builder.WriteString(fmt.Sprintf("\tv.%s = *%sVal\n", fieldName, fieldName))
+	}
+		}
 		}
 	}
 
@@ -372,7 +420,7 @@ func generateAliasSerializer(typeName, pkgName, qualifiedType string) string {
 	builder.WriteString(")\n\n")
 
 	// Write function for alias - just wraps binaryWrite
-	builder.WriteString(fmt.Sprintf("func write%s(w io.Writer, v *%s) error {\n", typeName, qualifiedType))
+	builder.WriteString(fmt.Sprintf("func Write%s(w io.Writer, v *%s) error {\n", typeName, qualifiedType))
 	builder.WriteString("\tif err := binaryWrite(w, *v); err != nil {\n")
 	builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", typeName))
 	builder.WriteString("\t}\n")
@@ -380,7 +428,7 @@ func generateAliasSerializer(typeName, pkgName, qualifiedType string) string {
 	builder.WriteString("}\n\n")
 
 	// Read function for alias - just wraps binaryRead
-	builder.WriteString(fmt.Sprintf("func read%s(r io.Reader) (*%s, error) {\n", typeName, qualifiedType))
+	builder.WriteString(fmt.Sprintf("func Read%s(r io.Reader) (*%s, error) {\n", typeName, qualifiedType))
 	builder.WriteString(fmt.Sprintf("\tvar v %s\n", qualifiedType))
 	builder.WriteString("\tif err := binaryRead(r, &v); err != nil {\n")
 	builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", typeName))
