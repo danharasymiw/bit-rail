@@ -9,22 +9,22 @@ import (
 	"github.com/danharasymiw/bit-rail/world"
 )
 
-func writeGetChunksMessage(w io.Writer, v *GetChunksMessage) error {
+func WriteGetChunksMessage(w io.Writer, v *GetChunksMessage) error {
 	if len(v.Positions) > 65535 {
 		return fmt.Errorf("Positions slice too long: %d", len(v.Positions))
 	}
-	if err := binaryWrite(w, len(v.Positions)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Positions))); err != nil {
 		return fmt.Errorf("error writing Positions length: %v", err)
 	}
 	for _, elem := range v.Positions {
-		if err := writePos(w, &elem); err != nil {
+		if err := WritePos(w, &elem); err != nil {
 			return fmt.Errorf("error writing Positions element: %v", err)
 		}
 	}
 	return nil
 }
 
-func readGetChunksMessage(r io.Reader) (*GetChunksMessage, error) {
+func ReadGetChunksMessage(r io.Reader) (*GetChunksMessage, error) {
 	v := &GetChunksMessage{}
 	var PositionsLen uint16
 	if err := binaryRead(r, &PositionsLen); err != nil {
@@ -32,7 +32,7 @@ func readGetChunksMessage(r io.Reader) (*GetChunksMessage, error) {
 	}
 	v.Positions = make([]world.Pos, PositionsLen)
 	for i := range v.Positions {
-		elem, err := readPos(r)
+		elem, err := ReadPos(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Positions element: %v", err)
 		}

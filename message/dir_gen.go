@@ -9,14 +9,14 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 )
 
-func writeDir(w io.Writer, v *types.Dir) error {
+func WriteDir(w io.Writer, v *types.Dir) error {
 	if err := binaryWrite(w, *v); err != nil {
 		return fmt.Errorf("error writing Dir: %v", err)
 	}
 	return nil
 }
 
-func readDir(r io.Reader) (*types.Dir, error) {
+func ReadDir(r io.Reader) (*types.Dir, error) {
 	var v types.Dir
 	if err := binaryRead(r, &v); err != nil {
 		return nil, fmt.Errorf("error reading Dir: %v", err)

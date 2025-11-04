@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-func writeChatMessage(w io.Writer, v *ChatMessage) error {
+func WriteChatMessage(w io.Writer, v *ChatMessage) error {
 	if err := writeString(w, v.Author); err != nil {
 		return fmt.Errorf("unable to serialize Author: %v", err)
 	}
@@ -17,7 +17,7 @@ func writeChatMessage(w io.Writer, v *ChatMessage) error {
 	return nil
 }
 
-func readChatMessage(r io.Reader) (*ChatMessage, error) {
+func ReadChatMessage(r io.Reader) (*ChatMessage, error) {
 	v := &ChatMessage{}
 	Author, err := readString(r)
 	if err != nil {

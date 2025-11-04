@@ -11,7 +11,8 @@ import (
 type MessageType uint8
 
 const (
-	MessageTypeChat MessageType = iota
+	MessageTypeInvalid MessageType = iota
+	MessageTypeChat
 	MessageTypeChunks
 	MessageTypeInitialLoad
 	MessageTypeLogin
@@ -72,7 +73,7 @@ type TrackUpdate struct {
 }
 
 func TrackMapToTrackUpdate(trackMap map[world.Pos]*types.Track) []*TrackUpdate {
-	trackUpdates := make([]*TrackUpdate, len(trackMap))
+	trackUpdates := make([]*TrackUpdate, 0, len(trackMap))
 	for pos, track := range trackMap {
 		trackUpdates = append(trackUpdates, &TrackUpdate{Pos: pos, Track: *track})
 	}

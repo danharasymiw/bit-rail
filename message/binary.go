@@ -6,7 +6,39 @@ import (
 	"io"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
+
+func WriteMessage(ws *websocket.Conn, msgType MessageType, writeBody func(io.Writer) error) error {
+	w, err := ws.NextWriter(websocket.BinaryMessage)
+	if err != nil {
+		return fmt.Errorf("error getting next writer: %v", err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			logrus.Errorf("Error closing writer: %v", err)
+		}
+	}()
+
+	if _, err := w.Write([]byte{byte(msgType)}); err != nil {
+		return fmt.Errorf("error writing message type %d: %v", msgType, err)
+	}
+
+	if err := writeBody(w); err != nil {
+		return fmt.Errorf("error writing message body: %v", err)
+	}
+
+	return nil
+}
+
+func GetMessageType(r io.Reader) (MessageType, error) {
+	var msgTypeByte [1]byte
+	if _, err := io.ReadFull(r, msgTypeByte[:]); err != nil {
+		return 0, err
+	}
+	return MessageType(msgTypeByte[0]), nil
+}
 
 // Exists for two reasons:
 // 1. To avoid having to type LittleEndian every time we write/read binary

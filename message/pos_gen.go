@@ -9,7 +9,7 @@ import (
 	"github.com/danharasymiw/bit-rail/world"
 )
 
-func writePos(w io.Writer, v *world.Pos) error {
+func WritePos(w io.Writer, v *world.Pos) error {
 	if v.X < 0 || v.X > 65535 {
 		return fmt.Errorf("X out of uint16 range: %d", v.X)
 	}
@@ -25,7 +25,7 @@ func writePos(w io.Writer, v *world.Pos) error {
 	return nil
 }
 
-func readPos(r io.Reader) (*world.Pos, error) {
+func ReadPos(r io.Reader) (*world.Pos, error) {
 	v := &world.Pos{}
 	var XVal uint16
 	if err := binaryRead(r, &XVal); err != nil {

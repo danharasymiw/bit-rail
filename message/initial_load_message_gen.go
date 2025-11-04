@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/world"
+	"github.com/danharasymiw/bit-rail/trains"
 )
 
-func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
+func WriteInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 	if v.Width < 0 || v.Width > 65535 {
 		return fmt.Errorf("Width out of uint16 range: %d", v.Width)
 	}
@@ -23,46 +23,46 @@ func writeInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 	if err := binaryWrite(w, uint16(v.Height)); err != nil {
 		return fmt.Errorf("error writing Height: %v", err)
 	}
-	if err := writePos(w, &v.CameraPos); err != nil {
+	if err := WritePos(w, &v.CameraPos); err != nil {
 		return fmt.Errorf("error writing CameraPos: %v", err)
 	}
 	if len(v.Chunks) > 65535 {
 		return fmt.Errorf("Chunks slice too long: %d", len(v.Chunks))
 	}
-	if err := binaryWrite(w, len(v.Chunks)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Chunks))); err != nil {
 		return fmt.Errorf("error writing Chunks length: %v", err)
 	}
 	for _, elem := range v.Chunks {
-		if err := writeChunk(w, elem); err != nil {
+		if err := WriteChunk(w, elem); err != nil {
 			return fmt.Errorf("error writing Chunks element: %v", err)
 		}
 	}
 	if len(v.Trains) > 65535 {
 		return fmt.Errorf("Trains slice too long: %d", len(v.Trains))
 	}
-	if err := binaryWrite(w, len(v.Trains)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Trains))); err != nil {
 		return fmt.Errorf("error writing Trains length: %v", err)
 	}
 	for _, elem := range v.Trains {
-		if err := writeTrain(w, elem); err != nil {
+		if err := WriteTrain(w, elem); err != nil {
 			return fmt.Errorf("error writing Trains element: %v", err)
 		}
 	}
 	if len(v.Tracks) > 65535 {
 		return fmt.Errorf("Tracks slice too long: %d", len(v.Tracks))
 	}
-	if err := binaryWrite(w, len(v.Tracks)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Tracks))); err != nil {
 		return fmt.Errorf("error writing Tracks length: %v", err)
 	}
 	for _, elem := range v.Tracks {
-		if err := writeTrackUpdate(w, elem); err != nil {
+		if err := WriteTrackUpdate(w, elem); err != nil {
 			return fmt.Errorf("error writing Tracks element: %v", err)
 		}
 	}
 	return nil
 }
 
-func readInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
+func ReadInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 	v := &InitialLoadMessage{}
 	var WidthVal uint16
 	if err := binaryRead(r, &WidthVal); err != nil {
@@ -74,7 +74,7 @@ func readInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 		return nil, fmt.Errorf("error reading Height: %v", err)
 	}
 	v.Height = int(HeightVal)
-	CameraPosVal, err := readPos(r)
+	CameraPosVal, err := ReadPos(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading CameraPos: %v", err)
 	}
@@ -85,7 +85,7 @@ func readInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 	}
 	v.Chunks = make([]*world.Chunk, ChunksLen)
 	for i := range v.Chunks {
-		elem, err := readChunk(r)
+		elem, err := ReadChunk(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Chunks element: %v", err)
 		}
@@ -97,7 +97,7 @@ func readInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 	}
 	v.Trains = make([]*trains.Train, TrainsLen)
 	for i := range v.Trains {
-		elem, err := readTrain(r)
+		elem, err := ReadTrain(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Trains element: %v", err)
 		}
@@ -109,7 +109,7 @@ func readInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 	}
 	v.Tracks = make([]*TrackUpdate, TracksLen)
 	for i := range v.Tracks {
-		elem, err := readTrackUpdate(r)
+		elem, err := ReadTrackUpdate(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Tracks element: %v", err)
 		}

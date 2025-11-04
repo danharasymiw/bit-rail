@@ -9,44 +9,44 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 )
 
-func writeWorldUpdateMessage(w io.Writer, v *WorldUpdateMessage) error {
+func WriteWorldUpdateMessage(w io.Writer, v *WorldUpdateMessage) error {
 	if len(v.TilesUpdated) > 65535 {
 		return fmt.Errorf("TilesUpdated slice too long: %d", len(v.TilesUpdated))
 	}
-	if err := binaryWrite(w, len(v.TilesUpdated)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.TilesUpdated))); err != nil {
 		return fmt.Errorf("error writing TilesUpdated length: %v", err)
 	}
 	for _, elem := range v.TilesUpdated {
-		if err := writeTileUpdate(w, elem); err != nil {
+		if err := WriteTileUpdate(w, elem); err != nil {
 			return fmt.Errorf("error writing TilesUpdated element: %v", err)
 		}
 	}
 	if len(v.TracksUpdated) > 65535 {
 		return fmt.Errorf("TracksUpdated slice too long: %d", len(v.TracksUpdated))
 	}
-	if err := binaryWrite(w, len(v.TracksUpdated)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.TracksUpdated))); err != nil {
 		return fmt.Errorf("error writing TracksUpdated length: %v", err)
 	}
 	for _, elem := range v.TracksUpdated {
-		if err := writeTrackUpdate(w, elem); err != nil {
+		if err := WriteTrackUpdate(w, elem); err != nil {
 			return fmt.Errorf("error writing TracksUpdated element: %v", err)
 		}
 	}
 	if len(v.Trains) > 65535 {
 		return fmt.Errorf("Trains slice too long: %d", len(v.Trains))
 	}
-	if err := binaryWrite(w, len(v.Trains)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Trains))); err != nil {
 		return fmt.Errorf("error writing Trains length: %v", err)
 	}
 	for _, elem := range v.Trains {
-		if err := writeTrain(w, elem); err != nil {
+		if err := WriteTrain(w, elem); err != nil {
 			return fmt.Errorf("error writing Trains element: %v", err)
 		}
 	}
 	return nil
 }
 
-func readWorldUpdateMessage(r io.Reader) (*WorldUpdateMessage, error) {
+func ReadWorldUpdateMessage(r io.Reader) (*WorldUpdateMessage, error) {
 	v := &WorldUpdateMessage{}
 	var TilesUpdatedLen uint16
 	if err := binaryRead(r, &TilesUpdatedLen); err != nil {
@@ -54,7 +54,7 @@ func readWorldUpdateMessage(r io.Reader) (*WorldUpdateMessage, error) {
 	}
 	v.TilesUpdated = make([]*TileUpdate, TilesUpdatedLen)
 	for i := range v.TilesUpdated {
-		elem, err := readTileUpdate(r)
+		elem, err := ReadTileUpdate(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading TilesUpdated element: %v", err)
 		}
@@ -66,7 +66,7 @@ func readWorldUpdateMessage(r io.Reader) (*WorldUpdateMessage, error) {
 	}
 	v.TracksUpdated = make([]*TrackUpdate, TracksUpdatedLen)
 	for i := range v.TracksUpdated {
-		elem, err := readTrackUpdate(r)
+		elem, err := ReadTrackUpdate(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading TracksUpdated element: %v", err)
 		}
@@ -78,7 +78,7 @@ func readWorldUpdateMessage(r io.Reader) (*WorldUpdateMessage, error) {
 	}
 	v.Trains = make([]*trains.Train, TrainsLen)
 	for i := range v.Trains {
-		elem, err := readTrain(r)
+		elem, err := ReadTrain(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Trains element: %v", err)
 		}

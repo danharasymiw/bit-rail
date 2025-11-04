@@ -9,25 +9,30 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 )
 
-func writeTrack(w io.Writer, v *types.Track) error {
-	if err := writeDir(w, &v.Direction); err != nil {
+func WriteTrack(w io.Writer, v *types.Track) error {
+	if err := WriteDir(w, &v.Direction); err != nil {
 		return fmt.Errorf("error writing Direction: %v", err)
 	}
 	if err := binaryWrite(w, v.HasSignal); err != nil {
 		return fmt.Errorf("error writing HasSignal: %v", err)
 	}
-	if err := writeDir(w, &v.SignalDir); err != nil {
+	if err := WriteDir(w, &v.SignalDir); err != nil {
 		return fmt.Errorf("error writing SignalDir: %v", err)
 	}
-	if err := writeBlock(w, v.Block); err != nil {
-		return fmt.Errorf("error writing Block: %v", err)
+	if err := binaryWrite(w, v.Block != nil); err != nil {
+		return fmt.Errorf("error writing Block present flag: %v", err)
+	}
+	if v.Block != nil {
+	if err := WriteBlock(w, v.Block); err != nil {
+			return fmt.Errorf("error writing Block: %v", err)
+		}
 	}
 	return nil
 }
 
-func readTrack(r io.Reader) (*types.Track, error) {
+func ReadTrack(r io.Reader) (*types.Track, error) {
 	v := &types.Track{}
-	DirectionVal, err := readDir(r)
+	DirectionVal, err := ReadDir(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Direction: %v", err)
 	}
@@ -35,15 +40,21 @@ func readTrack(r io.Reader) (*types.Track, error) {
 	if err := binaryRead(r, &v.HasSignal); err != nil {
 		return nil, fmt.Errorf("error reading HasSignal: %v", err)
 	}
-	SignalDirVal, err := readDir(r)
+	SignalDirVal, err := ReadDir(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading SignalDir: %v", err)
 	}
 	v.SignalDir = *SignalDirVal
-	BlockVal, err := readBlock(r)
-	if err != nil {
-		return nil, fmt.Errorf("error reading Block: %v", err)
+	var BlockPresent bool
+	if err := binaryRead(r, &BlockPresent); err != nil {
+		return nil, fmt.Errorf("error reading Block present flag: %v", err)
 	}
-	v.Block = BlockVal
+	if BlockPresent {
+		BlockVal, err := ReadBlock(r)
+		if err != nil {
+			return nil, fmt.Errorf("error reading Block: %v", err)
+		}
+		v.Block = BlockVal
+	}
 	return v, nil
 }

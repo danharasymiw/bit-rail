@@ -9,7 +9,7 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 )
 
-func writeTrain(w io.Writer, v *trains.Train) error {
+func WriteTrain(w io.Writer, v *trains.Train) error {
 	if err := writeUUID(w, &v.ID); err != nil {
 		return fmt.Errorf("error writing ID: %v", err)
 	}
@@ -19,27 +19,27 @@ func writeTrain(w io.Writer, v *trains.Train) error {
 	if err := binaryWrite(w, v.IsMoving); err != nil {
 		return fmt.Errorf("error writing IsMoving: %v", err)
 	}
-	if err := binaryWrite(w, v.Speed); err != nil {
+	if err := binaryWrite(w, int32(v.Speed)); err != nil {
 		return fmt.Errorf("error writing Speed: %v", err)
 	}
-	if err := binaryWrite(w, v.Acceleration); err != nil {
+	if err := binaryWrite(w, int32(v.Acceleration)); err != nil {
 		return fmt.Errorf("error writing Acceleration: %v", err)
 	}
 	if len(v.Cars) > 65535 {
 		return fmt.Errorf("Cars slice too long: %d", len(v.Cars))
 	}
-	if err := binaryWrite(w, len(v.Cars)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Cars))); err != nil {
 		return fmt.Errorf("error writing Cars length: %v", err)
 	}
 	for _, elem := range v.Cars {
-		if err := writeTrainCar(w, elem); err != nil {
+		if err := WriteTrainCar(w, elem); err != nil {
 			return fmt.Errorf("error writing Cars element: %v", err)
 		}
 	}
 	return nil
 }
 
-func readTrain(r io.Reader) (*trains.Train, error) {
+func ReadTrain(r io.Reader) (*trains.Train, error) {
 	v := &trains.Train{}
 	ID, err := readUUID(r)
 	if err != nil {
@@ -52,19 +52,23 @@ func readTrain(r io.Reader) (*trains.Train, error) {
 	if err := binaryRead(r, &v.IsMoving); err != nil {
 		return nil, fmt.Errorf("error reading IsMoving: %v", err)
 	}
-	if err := binaryRead(r, &v.Speed); err != nil {
+	var SpeedVal int32
+	if err := binaryRead(r, &SpeedVal); err != nil {
 		return nil, fmt.Errorf("error reading Speed: %v", err)
 	}
-	if err := binaryRead(r, &v.Acceleration); err != nil {
+	v.Speed = int(SpeedVal)
+	var AccelerationVal int32
+	if err := binaryRead(r, &AccelerationVal); err != nil {
 		return nil, fmt.Errorf("error reading Acceleration: %v", err)
 	}
+	v.Acceleration = int(AccelerationVal)
 	var CarsLen uint16
 	if err := binaryRead(r, &CarsLen); err != nil {
 		return nil, fmt.Errorf("error reading Cars length: %v", err)
 	}
 	v.Cars = make([]*trains.TrainCar, CarsLen)
 	for i := range v.Cars {
-		elem, err := readTrainCar(r)
+		elem, err := ReadTrainCar(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Cars element: %v", err)
 		}

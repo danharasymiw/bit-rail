@@ -9,7 +9,7 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 )
 
-func writeTrainCar(w io.Writer, v *trains.TrainCar) error {
+func WriteTrainCar(w io.Writer, v *trains.TrainCar) error {
 	if v.X < 0 || v.X > 65535 {
 		return fmt.Errorf("X out of uint16 range: %d", v.X)
 	}
@@ -22,16 +22,16 @@ func writeTrainCar(w io.Writer, v *trains.TrainCar) error {
 	if err := binaryWrite(w, uint16(v.Y)); err != nil {
 		return fmt.Errorf("error writing Y: %v", err)
 	}
-	if err := writeDir(w, &v.Direction); err != nil {
+	if err := WriteDir(w, &v.Direction); err != nil {
 		return fmt.Errorf("error writing Direction: %v", err)
 	}
-	if err := writeCarType(w, &v.Type); err != nil {
+	if err := WriteCarType(w, &v.Type); err != nil {
 		return fmt.Errorf("error writing Type: %v", err)
 	}
 	return nil
 }
 
-func readTrainCar(r io.Reader) (*trains.TrainCar, error) {
+func ReadTrainCar(r io.Reader) (*trains.TrainCar, error) {
 	v := &trains.TrainCar{}
 	var XVal uint16
 	if err := binaryRead(r, &XVal); err != nil {
@@ -43,12 +43,12 @@ func readTrainCar(r io.Reader) (*trains.TrainCar, error) {
 		return nil, fmt.Errorf("error reading Y: %v", err)
 	}
 	v.Y = int(YVal)
-	DirectionVal, err := readDir(r)
+	DirectionVal, err := ReadDir(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Direction: %v", err)
 	}
 	v.Direction = *DirectionVal
-	TypeVal, err := readCarType(r)
+	TypeVal, err := ReadCarType(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Type: %v", err)
 	}

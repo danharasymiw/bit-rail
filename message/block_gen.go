@@ -9,7 +9,7 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 )
 
-func writeBlock(w io.Writer, v *types.Block) error {
+func WriteBlock(w io.Writer, v *types.Block) error {
 	if err := writeUUID(w, &v.ID); err != nil {
 		return fmt.Errorf("error writing ID: %v", err)
 	}
@@ -19,7 +19,7 @@ func writeBlock(w io.Writer, v *types.Block) error {
 	return nil
 }
 
-func readBlock(r io.Reader) (*types.Block, error) {
+func ReadBlock(r io.Reader) (*types.Block, error) {
 	v := &types.Block{}
 	ID, err := readUUID(r)
 	if err != nil {

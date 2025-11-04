@@ -7,24 +7,24 @@ import (
 	"io"
 )
 
-func writeTileUpdate(w io.Writer, v *TileUpdate) error {
-	if err := writePos(w, &v.Pos); err != nil {
+func WriteTileUpdate(w io.Writer, v *TileUpdate) error {
+	if err := WritePos(w, &v.Pos); err != nil {
 		return fmt.Errorf("error writing Pos: %v", err)
 	}
-	if err := writeTile(w, &v.Tile); err != nil {
+	if err := WriteTile(w, &v.Tile); err != nil {
 		return fmt.Errorf("error writing Tile: %v", err)
 	}
 	return nil
 }
 
-func readTileUpdate(r io.Reader) (*TileUpdate, error) {
+func ReadTileUpdate(r io.Reader) (*TileUpdate, error) {
 	v := &TileUpdate{}
-	PosVal, err := readPos(r)
+	PosVal, err := ReadPos(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Pos: %v", err)
 	}
 	v.Pos = *PosVal
-	TileVal, err := readTile(r)
+	TileVal, err := ReadTile(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Tile: %v", err)
 	}

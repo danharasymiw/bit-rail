@@ -9,14 +9,14 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 )
 
-func writeCarType(w io.Writer, v *trains.CarType) error {
+func WriteCarType(w io.Writer, v *trains.CarType) error {
 	if err := binaryWrite(w, *v); err != nil {
 		return fmt.Errorf("error writing CarType: %v", err)
 	}
 	return nil
 }
 
-func readCarType(r io.Reader) (*trains.CarType, error) {
+func ReadCarType(r io.Reader) (*trains.CarType, error) {
 	var v trains.CarType
 	if err := binaryRead(r, &v); err != nil {
 		return nil, fmt.Errorf("error reading CarType: %v", err)

@@ -7,24 +7,24 @@ import (
 	"io"
 )
 
-func writeTrackUpdate(w io.Writer, v *TrackUpdate) error {
-	if err := writePos(w, &v.Pos); err != nil {
+func WriteTrackUpdate(w io.Writer, v *TrackUpdate) error {
+	if err := WritePos(w, &v.Pos); err != nil {
 		return fmt.Errorf("error writing Pos: %v", err)
 	}
-	if err := writeTrack(w, &v.Track); err != nil {
+	if err := WriteTrack(w, &v.Track); err != nil {
 		return fmt.Errorf("error writing Track: %v", err)
 	}
 	return nil
 }
 
-func readTrackUpdate(r io.Reader) (*TrackUpdate, error) {
+func ReadTrackUpdate(r io.Reader) (*TrackUpdate, error) {
 	v := &TrackUpdate{}
-	PosVal, err := readPos(r)
+	PosVal, err := ReadPos(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Pos: %v", err)
 	}
 	v.Pos = *PosVal
-	TrackVal, err := readTrack(r)
+	TrackVal, err := ReadTrack(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Track: %v", err)
 	}

@@ -9,14 +9,14 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 )
 
-func writeTileType(w io.Writer, v *types.TileType) error {
+func WriteTileType(w io.Writer, v *types.TileType) error {
 	if err := binaryWrite(w, *v); err != nil {
 		return fmt.Errorf("error writing TileType: %v", err)
 	}
 	return nil
 }
 
-func readTileType(r io.Reader) (*types.TileType, error) {
+func ReadTileType(r io.Reader) (*types.TileType, error) {
 	var v types.TileType
 	if err := binaryRead(r, &v); err != nil {
 		return nil, fmt.Errorf("error reading TileType: %v", err)

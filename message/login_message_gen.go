@@ -7,14 +7,14 @@ import (
 	"io"
 )
 
-func writeLoginMessage(w io.Writer, v *LoginMessage) error {
+func WriteLoginMessage(w io.Writer, v *LoginMessage) error {
 	if err := writeString(w, v.Username); err != nil {
 		return fmt.Errorf("unable to serialize Username: %v", err)
 	}
 	return nil
 }
 
-func readLoginMessage(r io.Reader) (*LoginMessage, error) {
+func ReadLoginMessage(r io.Reader) (*LoginMessage, error) {
 	v := &LoginMessage{}
 	Username, err := readString(r)
 	if err != nil {

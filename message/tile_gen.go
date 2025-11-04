@@ -9,16 +9,16 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 )
 
-func writeTile(w io.Writer, v *types.Tile) error {
-	if err := writeTileType(w, &v.Type); err != nil {
+func WriteTile(w io.Writer, v *types.Tile) error {
+	if err := WriteTileType(w, &v.Type); err != nil {
 		return fmt.Errorf("error writing Type: %v", err)
 	}
 	return nil
 }
 
-func readTile(r io.Reader) (*types.Tile, error) {
+func ReadTile(r io.Reader) (*types.Tile, error) {
 	v := &types.Tile{}
-	TypeVal, err := readTileType(r)
+	TypeVal, err := ReadTileType(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Type: %v", err)
 	}

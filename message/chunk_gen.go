@@ -10,27 +10,27 @@ import (
 	"github.com/danharasymiw/bit-rail/world"
 )
 
-func writeChunk(w io.Writer, v *world.Chunk) error {
-	if err := writePos(w, &v.Pos); err != nil {
+func WriteChunk(w io.Writer, v *world.Chunk) error {
+	if err := WritePos(w, &v.Pos); err != nil {
 		return fmt.Errorf("error writing Pos: %v", err)
 	}
 	if len(v.Tiles) > 65535 {
 		return fmt.Errorf("Tiles slice too long: %d", len(v.Tiles))
 	}
-	if err := binaryWrite(w, len(v.Tiles)); err != nil {
+	if err := binaryWrite(w, uint16(len(v.Tiles))); err != nil {
 		return fmt.Errorf("error writing Tiles length: %v", err)
 	}
 	for _, elem := range v.Tiles {
-		if err := writeTile(w, elem); err != nil {
+		if err := WriteTile(w, elem); err != nil {
 			return fmt.Errorf("error writing Tiles element: %v", err)
 		}
 	}
 	return nil
 }
 
-func readChunk(r io.Reader) (*world.Chunk, error) {
+func ReadChunk(r io.Reader) (*world.Chunk, error) {
 	v := &world.Chunk{}
-	PosVal, err := readPos(r)
+	PosVal, err := ReadPos(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading Pos: %v", err)
 	}
@@ -41,7 +41,7 @@ func readChunk(r io.Reader) (*world.Chunk, error) {
 	}
 	v.Tiles = make([]*types.Tile, TilesLen)
 	for i := range v.Tiles {
-		elem, err := readTile(r)
+		elem, err := ReadTile(r)
 		if err != nil {
 			return nil, fmt.Errorf("error reading Tiles element: %v", err)
 		}
