@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/danharasymiw/bit-rail/message"
@@ -9,6 +10,8 @@ import (
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/sirupsen/logrus"
 )
+
+const systemPlayerName = "SYSTEM"
 
 type Engine struct {
 	w       *world.World
@@ -232,7 +235,10 @@ func (e *Engine) handleLoginMessage(playerMsg *playerMessage) {
 		len(initialLoadMessage.Chunks), len(initialLoadMessage.Trains), len(initialLoadMessage.Tracks))
 	playerMsg.responseCh <- &outgoingMessage{initialLoadMessage: &initialLoadMessage}
 	e.nm.broadcastCh <- &outgoingMessage{
-		chatMessage: &message.ChatMessage{},
+		chatMessage: &message.ChatMessage{
+			Author:  systemPlayerName,
+			Message: fmt.Sprintf("%s connected.", playerMsg.playerID),
+		},
 	}
 }
 
