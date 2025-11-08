@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 
+	"github.com/danharasymiw/bit-rail/message"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,16 +22,16 @@ func (h *ChatLogHook) Fire(entry *logrus.Entry) error {
 	levelPrefix := ""
 	switch entry.Level {
 	case logrus.DebugLevel:
-		levelPrefix = "[DEBUG] "
+		levelPrefix = "DEBUG"
 	case logrus.InfoLevel:
-		levelPrefix = "[INFO] "
+		levelPrefix = "INFO"
 	case logrus.WarnLevel:
-		levelPrefix = "[WARN] "
+		levelPrefix = "WARN"
 	case logrus.ErrorLevel:
-		levelPrefix = "[ERROR] "
+		levelPrefix = "ERROR"
 	}
 
-	msg := levelPrefix + entry.Message
+	msg := entry.Message
 	if len(entry.Data) > 0 {
 		// Add fields to message
 		for k, v := range entry.Data {
@@ -38,17 +39,11 @@ func (h *ChatLogHook) Fire(entry *logrus.Entry) error {
 		}
 	}
 
-	// Add to chat messages
-	h.client.chatMessages = append(h.client.chatMessages, ChatMessage{
-		Author:  "System",
+	chatMsg := &message.ChatMessage{
+		Author:  levelPrefix,
 		Message: msg,
-	})
-
-	// Keep only last N messages
-	const maxChatMessages = 50
-	if len(h.client.chatMessages) > maxChatMessages {
-		h.client.chatMessages = h.client.chatMessages[len(h.client.chatMessages)-maxChatMessages:]
 	}
+	h.client.handleChatMessage(chatMsg)
 
 	return nil
 }

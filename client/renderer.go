@@ -50,35 +50,60 @@ func (r *SimpleRenderer) Render(camPos world.Pos, chatMessages []ChatMessage) {
 }
 
 func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
-	for relY, row := range r.w.Tiles[pos.Y : pos.Y+height] {
-		for relX, tile := range row[pos.X : pos.X+width] {
-			worldPos := world.Pos{X: pos.X + relX, Y: pos.Y + relY}
+	for relY := range height {
+		worldY := pos.Y + relY
+		if worldY >= len(r.w.Tiles) {
+			// Fill remaining rows with spaces if we run out of tiles
+			for relX := range width {
+				screenY := int(height) - 1 - relY
+				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
+			}
+			continue
+		}
+		row := r.w.Tiles[worldY]
+		for relX := range width {
+			worldX := pos.X + relX
+			if worldX >= len(row) {
+				// Fill with space if we run out of tiles in this row
+				screenY := int(height) - 1 - relY
+				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
+				continue
+			}
+			tile := row[worldX]
+			if tile == nil {
+				// Fill with space if tile is nil
+				screenY := int(height) - 1 - relY
+				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
+				continue
+			}
+			worldPos := world.Pos{X: worldX, Y: worldY}
 			ch, style := r.getTileChar(worldPos, tile)
-			screenY := height - 1 - relY // Flip Y
+			screenY := int(height) - 1 - relY // Flip Y
 			r.screen.SetContent(relX, screenY, ch, nil, style)
 		}
 	}
 }
 
 func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
+	posX, posY := int(pos.X), int(pos.Y)
 	for _, t := range r.w.Trains {
 		// Assuming train limits of 100 - check the first car to see if its
 		// even possible to be on screen
 		if len(t.Cars) > 0 {
 			c := t.Cars[0]
-			if c.X < pos.X-100 || c.X >= pos.X+width+100 || c.Y < pos.Y-100 || c.Y >= pos.Y+height+100 {
+			if c.X < posX-100 || c.X >= posX+width+100 || c.Y < posY-100 || c.Y >= int(posY)+height+100 {
 				continue // Skip this train
 			}
 		}
 		for _, c := range t.Cars {
-			if c.X < pos.X || c.X >= pos.X+width || c.Y < pos.Y || c.Y >= pos.Y+height {
+			if c.X < posX || c.X >= posX+width || c.Y < posY || c.Y >= posY+height {
 				continue // Skip this car
 			}
 
 			ch, col := r.getTrainCarChar(c)
 			style := tcell.StyleDefault.Foreground(col)
 			screenX := c.X - pos.X
-			screenY := height - 1 - (c.Y - pos.Y)
+			screenY := height - 1 - (int(c.Y) - posY)
 
 			r.screen.SetContent(screenX, screenY, ch, nil, style)
 		}
@@ -181,7 +206,7 @@ func (r *SimpleRenderer) renderInfoPanel(x, y, width, height int) {
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 
 	// Draw border
-	for i := 0; i < height; i++ {
+	for i := 0; i < int(height); i++ {
 		r.screen.SetContent(x, y+i, '│', nil, borderStyle)
 	}
 
@@ -199,14 +224,13 @@ func (r *SimpleRenderer) renderInfoPanel(x, y, width, height int) {
 	}
 
 	// TODO: Add actual info content here
-
 }
 
 func (r *SimpleRenderer) renderChatPanel(x, y, width, height int, chatMessages []ChatMessage) {
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 
 	// Draw top border
-	for i := 0; i < width; i++ {
+	for i := range width {
 		r.screen.SetContent(x+i, y, '─', nil, borderStyle)
 	}
 

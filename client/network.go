@@ -1,7 +1,7 @@
 package client
 
 import (
-	"encoding/json"
+	"io"
 
 	"github.com/danharasymiw/bit-rail/message"
 	"github.com/gorilla/websocket"
@@ -12,6 +12,7 @@ type incomingMessage struct {
 	chatMessage        *message.ChatMessage
 	chunksMessage      *message.ChunksMessage
 	initialLoadMessage *message.InitialLoadMessage
+	worldUpdateMessage *message.WorldUpdateMessage
 }
 
 type outgoingMessage struct {
@@ -47,42 +48,53 @@ func (nm *clientNetworkManager) readLoop() {
 	defer close(nm.incomingCh)
 
 	for {
-		var msg message.Message
-		err := nm.ws.ReadJSON(&msg)
+		_, reader, err := nm.ws.NextReader()
 		if err != nil {
 			logrus.Debugf("WebSocket read error: %v", err)
 			return
 		}
 
-		var incoming incomingMessage
+		msgType, err := message.GetMessageType(reader)
+		if err != nil {
+			logrus.Errorf("Error reading message type: %v", err)
+			continue
+		}
 
-		switch msg.Type {
+		var incoming incomingMessage
+		switch msgType {
 		case message.MessageTypeInitialLoad:
-			var initialLoadMsg message.InitialLoadMessage
-			if err := json.Unmarshal(msg.Data, &initialLoadMsg); err != nil {
-				logrus.Errorf("Error unmarshaling initial load message: %v", err)
+			logrus.Debug("Reading initial load message...")
+			incoming.initialLoadMessage, err = message.ReadInitialLoadMessage(reader)
+			if err != nil {
+				logrus.Errorf("Error reading initial load message: %v", err)
 				continue
 			}
-			incoming.initialLoadMessage = &initialLoadMsg
+			logrus.Debugf("Successfully read initial load message (chunks: %d, trains: %d, tracks: %d)",
+				len(incoming.initialLoadMessage.Chunks), len(incoming.initialLoadMessage.Trains), len(incoming.initialLoadMessage.Tracks))
 
 		case message.MessageTypeChat:
-			var chatMsg message.ChatMessage
-			if err := json.Unmarshal(msg.Data, &chatMsg); err != nil {
-				logrus.Errorf("Error unmarshaling chat message: %v", err)
+			incoming.chatMessage, err = message.ReadChatMessage(reader)
+			if err != nil {
+				logrus.Errorf("Error reading chat message: %v", err)
 				continue
 			}
-			incoming.chatMessage = &chatMsg
 
 		case message.MessageTypeChunks:
-			var chunksMsg message.ChunksMessage
-			if err := json.Unmarshal(msg.Data, &chunksMsg); err != nil {
-				logrus.Errorf("Error unmarshaling chunks message: %v", err)
+			incoming.chunksMessage, err = message.ReadChunksMessage(reader)
+			if err != nil {
+				logrus.Errorf("Error reading chunks message: %v", err)
 				continue
 			}
-			incoming.chunksMessage = &chunksMsg
+
+		case message.MessageTypeWorldUpdate:
+			incoming.worldUpdateMessage, err = message.ReadWorldUpdateMessage(reader)
+			if err != nil {
+				logrus.Errorf("Error reading world update message: %v", err)
+				continue
+			}
 
 		default:
-			logrus.Debugf("Unknown message type: %d", msg.Type)
+			logrus.Debugf("Unknown incoming message type: %d", msgType)
 			continue
 		}
 
@@ -92,36 +104,26 @@ func (nm *clientNetworkManager) readLoop() {
 
 func (nm *clientNetworkManager) writeLoop() {
 	for outgoing := range nm.outgoingCh {
-		var msgType message.MessageType
-		var data []byte
-		var err error
-
-		// Determine message type and marshal
+		var writeErr error
 		if outgoing.loginMessage != nil {
-			msgType = message.MessageTypeLogin
-			data, err = json.Marshal(outgoing.loginMessage)
+			writeErr = message.WriteMessage(nm.ws, message.MessageTypeLogin, func(w io.Writer) error {
+				return message.WriteLoginMessage(w, outgoing.loginMessage)
+			})
 		} else if outgoing.chatMessage != nil {
-			msgType = message.MessageTypeChat
-			data, err = json.Marshal(outgoing.chatMessage)
+			writeErr = message.WriteMessage(nm.ws, message.MessageTypeChat, func(w io.Writer) error {
+				return message.WriteChatMessage(w, outgoing.chatMessage)
+			})
 		} else if outgoing.getChunksMessage != nil {
-			msgType = message.MessageTypeGetChunks
-			data, err = json.Marshal(outgoing.getChunksMessage)
+			writeErr = message.WriteMessage(nm.ws, message.MessageTypeGetChunks, func(w io.Writer) error {
+				return message.WriteGetChunksMessage(w, outgoing.getChunksMessage)
+			})
 		} else {
 			logrus.Warn("Unknown outgoing message type")
-			continue
-		}
-		if err != nil {
-			logrus.Errorf("Error marshaling message: %v", err)
-			continue
+			return
 		}
 
-		msg := message.Message{
-			Type: msgType,
-			Data: data,
-		}
-		if err := nm.ws.WriteJSON(msg); err != nil {
-			logrus.Debugf("WebSocket write error: %v", err)
-			return
+		if writeErr != nil {
+			logrus.Errorf("Error writing message: %v", writeErr)
 		}
 	}
 }

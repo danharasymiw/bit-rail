@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"sync"
@@ -28,6 +28,7 @@ type outgoingMessage struct {
 	initialLoadMessage *message.InitialLoadMessage
 	chatMessage        *message.ChatMessage
 	chunksMessage      *message.ChunksMessage
+	worldUpdateMessage *message.WorldUpdateMessage
 }
 
 type playerConnection struct {
@@ -77,79 +78,100 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var msg message.Message
-	if err := ws.ReadJSON(&msg); err != nil {
+	// Read the first message (must be login)
+	_, reader, err := ws.NextReader()
+	if err != nil {
+		logrus.Errorf("WebSocket read error on initial connection: %v", err)
 		ws.Close()
 		return
 	}
 
-	if msg.Type != message.MessageTypeLogin {
-		logrus.Warn("First message was not login")
+	msgType, err := message.GetMessageType(reader)
+	if err != nil {
+		logrus.Errorf("Error reading message type on initial connection: %v", err)
 		ws.Close()
 		return
 	}
 
-	var loginMsg message.LoginMessage
-	if err := json.Unmarshal(msg.Data, &loginMsg); err != nil {
-		logrus.Errorf("Failed to unmarshal login message: %v", err)
+	if msgType != message.MessageTypeLogin {
+		logrus.Warnf("First message was not login, got type: %d", msgType)
 		ws.Close()
 		return
 	}
 
-	// Create response channel for this player
+	loginMsg, err := message.ReadLoginMessage(reader)
+	if err != nil {
+		logrus.Errorf("Failed to read login message: %v", err)
+		ws.Close()
+		return
+	}
+
 	responseCh := make(chan outgoingMessage, 100)
-
 	playerConn := &playerConnection{
 		playerID:   loginMsg.Username,
 		ws:         ws,
 		outgoingCh: responseCh,
 	}
+	logrus.WithField("player", loginMsg.Username).Debugf("Created responseCh: %p, playerConn.outgoingCh: %p (same: %v)", 
+		&responseCh, &playerConn.outgoingCh, &responseCh == &playerConn.outgoingCh)
 
 	nm.playersMu.Lock()
 	nm.players[loginMsg.Username] = playerConn
 	nm.playersMu.Unlock()
 
+	go nm.handleRead(playerConn)
+	logEntry := logrus.WithField("player", loginMsg.Username)
+	logEntry.Debug("Starting handleWrite for player")
 	// Send login message to engine for processing
+	logEntry.Debug("Sending login message to engine")
 	nm.incomingCh <- playerMessage{
 		playerID:   loginMsg.Username,
-		message:    &incomingMessage{loginMessage: &loginMsg},
+		message:    &incomingMessage{loginMessage: loginMsg},
 		responseCh: &responseCh,
 	}
+	logEntry.Debugf("Login message sent to engine, responseCh pointer: %p", &responseCh)
 
-	go nm.handleRead(playerConn)
 	nm.handleWrite(playerConn)
 }
 
 func (nm *networkManager) handleRead(playerConn *playerConnection) {
+	defer nm.disconnectPlayer(playerConn.playerID)
+
 	logEntry := logrus.WithField("player", playerConn.playerID)
+
 	for {
-		var msg message.Message
-		if err := playerConn.ws.ReadJSON(&msg); err != nil {
+		_, reader, err := playerConn.ws.NextReader()
+		if err != nil {
 			logEntry.Debugf("WebSocket read error: %v", err)
 			return
 		}
 
+		msgType, err := message.GetMessageType(reader)
+		if err != nil {
+			logEntry.Debugf("Error reading message type: %v", err)
+			continue
+		}
+
 		var incoming incomingMessage
 
-		switch msg.Type {
+		switch msgType {
 		case message.MessageTypeChat:
-			var chatMsg message.ChatMessage
-			if err := json.Unmarshal(msg.Data, &chatMsg); err != nil {
-				logEntry.Errorf("Error unmarshaling chat message: %v", err)
+			println("received chat message")
+			incoming.chatMessage, err = message.ReadChatMessage(reader)
+			if err != nil {
+				logEntry.Errorf("Error reading chat message: %v", err)
 				continue
 			}
-			incoming.chatMessage = &chatMsg
 
 		case message.MessageTypeGetChunks:
-			var getChunksMsg message.GetChunksMessage
-			if err := json.Unmarshal(msg.Data, &getChunksMsg); err != nil {
-				logEntry.Errorf("Error unmarshaling get chunks message: %v", err)
+			incoming.getChunksMessage, err = message.ReadGetChunksMessage(reader)
+			if err != nil {
+				logEntry.Errorf("Error reading get chunks message: %v", err)
 				continue
 			}
-			incoming.getChunksMessage = &getChunksMsg
 
 		default:
-			logEntry.Debugf("Unknown message type: %d", msg.Type)
+			logEntry.Debugf("Unknown incoming message type: %d", msgType)
 			continue
 		}
 
@@ -162,42 +184,54 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 }
 
 func (nm *networkManager) handleWrite(playerConn *playerConnection) {
-	logEntry := logrus.WithField("player", playerConn.playerID)
-	defer nm.disconnectPlayer(playerConn.playerID)
-	defer playerConn.ws.Close()
-
+	logEntry := logrus.WithField("playerID", playerConn.playerID)
+	logEntry.Debugf("handleWrite started, waiting for messages on channel (cap: %d, len: %d)", cap(playerConn.outgoingCh), len(playerConn.outgoingCh))
 	for outgoing := range playerConn.outgoingCh {
-		var msgType message.MessageType
-		var data []byte
-		var err error
-
+		logEntry.Debugf("handleWrite received message (initialLoad: %v, chat: %v, chunks: %v, worldUpdate: %v)",
+			outgoing.initialLoadMessage != nil, outgoing.chatMessage != nil, outgoing.chunksMessage != nil, outgoing.worldUpdateMessage != nil)
+		var writeErr error
 		if outgoing.initialLoadMessage != nil {
-			msgType = message.MessageTypeInitialLoad
-			data, err = json.Marshal(outgoing.initialLoadMessage)
+			logEntry.Debug("About to call WriteMessage for initial load")
+			writeErr = message.WriteMessage(playerConn.ws, message.MessageTypeInitialLoad, func(w io.Writer) error {
+				logEntry.Debug("Inside WriteMessage callback, writing initial load message body")
+				err := message.WriteInitialLoadMessage(w, outgoing.initialLoadMessage)
+				if err != nil {
+					logEntry.Errorf("WriteInitialLoadMessage returned error: %v", err)
+				} else {
+					logEntry.Debug("WriteInitialLoadMessage completed successfully")
+				}
+				return err
+			})
+			if writeErr != nil {
+				logEntry.Errorf("Error writing initial load message: %v", writeErr)
+			} else {
+				logEntry.Debug("Initial load message written successfully to websocket")
+			}
 		} else if outgoing.chatMessage != nil {
-			msgType = message.MessageTypeChat
-			data, err = json.Marshal(outgoing.chatMessage)
+			println("Sending chat message")
+			writeErr = message.WriteMessage(playerConn.ws, message.MessageTypeChat, func(w io.Writer) error {
+				return message.WriteChatMessage(w, outgoing.chatMessage)
+			})
+			if writeErr != nil {
+				logEntry.Errorf("Error writing chat message: %v", writeErr)
+			}
 		} else if outgoing.chunksMessage != nil {
-			msgType = message.MessageTypeChunks
-			data, err = json.Marshal(outgoing.chunksMessage)
+			writeErr = message.WriteMessage(playerConn.ws, message.MessageTypeChunks, func(w io.Writer) error {
+				return message.WriteChunksMessage(w, outgoing.chunksMessage)
+			})
+			if writeErr != nil {
+				logEntry.Errorf("Error writing chunks message: %v", writeErr)
+			}
+		} else if outgoing.worldUpdateMessage != nil {
+			writeErr = message.WriteMessage(playerConn.ws, message.MessageTypeWorldUpdate, func(w io.Writer) error {
+				return message.WriteWorldUpdateMessage(w, outgoing.worldUpdateMessage)
+			})
+			if writeErr != nil {
+				logEntry.Errorf("Error writing world update message: %v", writeErr)
+			}
 		} else {
 			logEntry.Warn("Unknown outgoing message type")
 			continue
-		}
-
-		if err != nil {
-			logEntry.Errorf("Error marshaling message: %v", err)
-			continue
-		}
-
-		msg := message.Message{
-			Type: msgType,
-			Data: data,
-		}
-
-		if err := playerConn.ws.WriteJSON(msg); err != nil {
-			logEntry.Errorf("WebSocket write error: %v", err)
-			return
 		}
 	}
 }
@@ -218,6 +252,11 @@ func (nm *networkManager) disconnectPlayer(playerID string) {
 		close(player.outgoingCh)
 		delete(nm.players, playerID)
 		logrus.Debugf("Player %s disconnected", playerID)
+		// Close websocket connection after removing from map to avoid concurrent access
+		ws := player.ws
+		nm.playersMu.Unlock()
+		ws.Close()
+		return
 	}
 	nm.playersMu.Unlock()
 }

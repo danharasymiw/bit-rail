@@ -133,8 +133,6 @@ func (c *Client) Run() error {
 func (c *Client) waitForInitialLoad() error {
 	logrus.Debug("Waiting for initial load message...")
 	for incoming := range c.nm.incomingCh {
-		logrus.Debugf("Received message in waitForInitialLoad (initialLoad: %v, chat: %v, chunks: %v, worldUpdate: %v)",
-			incoming.initialLoadMessage != nil, incoming.chatMessage != nil, incoming.chunksMessage != nil, incoming.worldUpdateMessage != nil)
 		if incoming.initialLoadMessage != nil {
 			logrus.Debug("Initial load message received, handling...")
 			return c.handleInitialLoad(incoming.initialLoadMessage)
@@ -163,9 +161,8 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 	for _, train := range msg.Trains {
 		c.w.AddTrain(train)
 	}
-	for pos, track := range msg.Tracks {
-		c.w.AddTrack(pos, track)
-		c.w.Tracks[pos] = track
+	for _, trackUpdate := range msg.Tracks {
+		c.w.AddTrack(trackUpdate.Pos, &trackUpdate.Track)
 	}
 
 	// Ensure we have full chunk buffer (in case initial load didn't include all)
@@ -177,16 +174,7 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 func (c *Client) handleIncomingMessage(incoming incomingMessage) {
 	switch {
 	case incoming.chatMessage != nil:
-		c.chatMessages = append(c.chatMessages, ChatMessage{
-			Author:  incoming.chatMessage.Author,
-			Message: incoming.chatMessage.Message,
-		})
-
-		// Keep only last N messages
-		const maxChatMessages = 50
-		if len(c.chatMessages) > maxChatMessages {
-			c.chatMessages = c.chatMessages[len(c.chatMessages)-maxChatMessages:]
-		}
+		c.handleChatMessage(incoming.chatMessage)
 
 	case incoming.chunksMessage != nil:
 		for _, chunk := range incoming.chunksMessage.Chunks {
@@ -199,6 +187,27 @@ func (c *Client) handleIncomingMessage(incoming incomingMessage) {
 				}
 			}
 		}
+	case incoming.worldUpdateMessage != nil:
+		for _, tu := range incoming.worldUpdateMessage.TilesUpdated {
+			c.w.Tiles[tu.Pos.Y][tu.Pos.X] = &tu.Tile
+		}
+		for _, tu := range incoming.worldUpdateMessage.TracksUpdated {
+			c.w.Tracks[tu.Pos] = &tu.Track
+		}
+		c.w.Trains = incoming.worldUpdateMessage.Trains
+	}
+}
+
+func (c *Client) handleChatMessage(msg *message.ChatMessage) {
+	c.chatMessages = append(c.chatMessages, ChatMessage{
+		Author:  msg.Author,
+		Message: msg.Message,
+	})
+
+	// Keep only last N messages
+	const maxChatMessages = 10
+	if len(c.chatMessages) > maxChatMessages {
+		c.chatMessages = c.chatMessages[len(c.chatMessages)-maxChatMessages:]
 	}
 }
 
@@ -229,9 +238,19 @@ func (c *Client) loadChunksAroundCamera() {
 
 	centerChunk := world.TileToChunkPos(c.camPos)
 
+	minChunkX, minChunkY := 0, 0
+	if centerChunk.X > chunkRadius {
+		minChunkX = centerChunk.X - chunkRadius
+	}
+	if centerChunk.Y > chunkRadius {
+		minChunkX = centerChunk.Y - chunkRadius
+	}
+	maxChunkX := c.w.Width / world.ChunkSize
+	maxChunkY := c.w.Height / world.ChunkSize
+
 	chunkPositions := make([]world.Pos, 0, (2*chunkRadius+1)*(2*chunkRadius+1))
-	for dx := -chunkRadius; dx <= chunkRadius; dx++ {
-		for dy := -chunkRadius; dy <= chunkRadius; dy++ {
+	for dx := minChunkX; dx <= maxChunkX; dx++ {
+		for dy := minChunkY; dy <= maxChunkY; dy++ {
 			chunkPositions = append(chunkPositions, world.Pos{X: centerChunk.X + dx, Y: centerChunk.Y + dy})
 		}
 	}

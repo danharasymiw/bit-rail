@@ -14,7 +14,12 @@ import (
 func main() {
 	serverMode := flag.Bool("server", false, "Run as headless server")
 	localMode := flag.Bool("local", false, "Run server and client together")
+	debugMode := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
+
+	if *debugMode {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 
 	if *serverMode {
 		w := test_worlds.NewPerlinWorld(123, 123)

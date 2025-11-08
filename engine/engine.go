@@ -15,6 +15,10 @@ type Engine struct {
 	tickDur time.Duration
 	running bool
 	nm      *networkManager
+
+	// TODO: do we really want this to be a message type?
+	tilesUpdated  []*message.TileUpdate
+	tracksUpdated []*message.TrackUpdate
 }
 
 func New(w *world.World, tickDur time.Duration) *Engine {
@@ -52,6 +56,16 @@ func (e *Engine) tick() {
 	for _, t := range e.w.Trains {
 		e.moveTrain(t)
 	}
+
+	e.nm.broadcastCh <- outgoingMessage{
+		worldUpdateMessage: &message.WorldUpdateMessage{
+			TilesUpdated:  e.tilesUpdated,
+			TracksUpdated: e.tracksUpdated,
+			Trains:        e.w.Trains,
+		},
+	}
+
+	e.tilesUpdated = make([]*message.TileUpdate, 0)
 }
 
 func (e *Engine) moveTrain(t *trains.Train) {
@@ -168,11 +182,12 @@ func (e *Engine) getChunksInRegion(worldPos world.Pos) []*world.Chunk {
 	// Get 3x3 grid of chunks around the center
 	for i := -3; i <= 3; i++ {
 		for j := -3; j <= 3; j++ {
-			chunkPos := world.Pos{X: centerChunk.X + i, Y: centerChunk.Y + j}
-
-			if chunkPos.X < 0 || chunkPos.Y < 0 {
+			x := int(centerChunk.X) + i
+			y := int(centerChunk.Y) + j
+			if x < 0 || y < 0 {
 				continue
 			}
+			chunkPos := world.Pos{X: x, Y: y}
 
 			chunk := e.w.ChunkAt(chunkPos)
 			chunks = append(chunks, chunk)
@@ -201,6 +216,7 @@ func (e *Engine) handleChatMessage(playerMsg playerMessage) {
 
 func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.loginMessage.Username)
+	entry.Debug("Processing login message")
 
 	camPos := world.Pos{X: e.w.Width / 2, Y: e.w.Height / 2}
 
@@ -209,11 +225,14 @@ func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
 		Height:    e.w.Height,
 		CameraPos: world.Pos{X: camPos.X, Y: camPos.Y},
 		Chunks:    e.getChunksInRegion(camPos),
-		Trains:    e.w.Trains, // TODO: get trains in region
-		Tracks:    e.w.Tracks, // TODO: get tracks in region
+		Trains:    e.w.Trains,                                // TODO: get trains in region
+		Tracks:    message.TrackMapToTrackUpdate(e.w.Tracks), // TODO: get tracks in region
 	}
+	entry.Debugf("Sending initial load message to response channel (chunks: %d, trains: %d, tracks: %d)", 
+		len(initialLoadMessage.Chunks), len(initialLoadMessage.Trains), len(initialLoadMessage.Tracks))
+	entry.Debugf("Response channel pointer: %p, channel cap: %d, channel len: %d", playerMsg.responseCh, cap(*playerMsg.responseCh), len(*playerMsg.responseCh))
 	*playerMsg.responseCh <- outgoingMessage{initialLoadMessage: &initialLoadMessage}
-	entry.Debug("Player sent initial load message")
+	entry.Debugf("Initial load message sent to response channel (channel len now: %d)", len(*playerMsg.responseCh))
 }
 
 func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
@@ -231,4 +250,14 @@ func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
 	}
 	*playerMsg.responseCh <- outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}
 	entry.Debugf("Player requested chunks")
+}
+
+// BroadcastChatMessage sends a chat message to all connected players
+func (e *Engine) BroadcastChatMessage(author, msg string) {
+	e.nm.broadcastCh <- outgoingMessage{
+		chatMessage: &message.ChatMessage{
+			Author:  author,
+			Message: msg,
+		},
+	}
 }
