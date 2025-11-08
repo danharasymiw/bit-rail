@@ -50,4 +50,3 @@ func TestWriteReadString_TooLong(t *testing.T) {
 	err := writeString(w, expectedString)
 	assert.NotNil(t, err)
 }
-

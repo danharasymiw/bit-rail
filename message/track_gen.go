@@ -23,7 +23,7 @@ func WriteTrack(w io.Writer, v *types.Track) error {
 		return fmt.Errorf("error writing Block present flag: %v", err)
 	}
 	if v.Block != nil {
-	if err := WriteBlock(w, v.Block); err != nil {
+		if err := WriteBlock(w, v.Block); err != nil {
 			return fmt.Errorf("error writing Block: %v", err)
 		}
 	}

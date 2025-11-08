@@ -62,7 +62,7 @@ func (c *Client) Run() error {
 	c.nm.start()
 
 	logrus.Debugf("Sending login message with username: %s", c.username)
-	c.nm.outgoingCh <- outgoingMessage{
+	c.nm.outgoingCh <- &outgoingMessage{
 		loginMessage: &message.LoginMessage{
 			Username: c.username,
 		},
@@ -171,7 +171,7 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 	return nil
 }
 
-func (c *Client) handleIncomingMessage(incoming incomingMessage) {
+func (c *Client) handleIncomingMessage(incoming *incomingMessage) {
 	switch {
 	case incoming.chatMessage != nil:
 		c.handleChatMessage(incoming.chatMessage)
@@ -273,7 +273,7 @@ func (c *Client) getChunks(positions []world.Pos) {
 		return
 	}
 
-	c.nm.outgoingCh <- outgoingMessage{
+	c.nm.outgoingCh <- &outgoingMessage{
 		getChunksMessage: &message.GetChunksMessage{
 			Positions: missingChunkPositions,
 		},

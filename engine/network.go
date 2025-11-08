@@ -15,7 +15,7 @@ import (
 type playerMessage struct {
 	playerID   string
 	message    *incomingMessage
-	responseCh *chan outgoingMessage
+	responseCh chan *outgoingMessage
 }
 
 type incomingMessage struct {
@@ -34,22 +34,22 @@ type outgoingMessage struct {
 type playerConnection struct {
 	playerID   string
 	ws         *websocket.Conn
-	outgoingCh chan outgoingMessage
+	outgoingCh chan *outgoingMessage
 }
 
 type networkManager struct {
 	players     map[string]*playerConnection
 	playersMu   sync.RWMutex
 	upgrader    websocket.Upgrader
-	incomingCh  chan playerMessage   // Shared channel for ALL players
-	broadcastCh chan outgoingMessage // Shared channel for ALL players
+	incomingCh  chan *playerMessage   // Shared channel for ALL players
+	broadcastCh chan *outgoingMessage // Shared channel for ALL players
 }
 
 func newNetworkManager() *networkManager {
 	return &networkManager{
 		players:     make(map[string]*playerConnection),
-		incomingCh:  make(chan playerMessage, 100),
-		broadcastCh: make(chan outgoingMessage, 100),
+		incomingCh:  make(chan *playerMessage, 100),
+		broadcastCh: make(chan *outgoingMessage, 100),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -106,13 +106,13 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseCh := make(chan outgoingMessage, 100)
+	responseCh := make(chan *outgoingMessage, 100)
 	playerConn := &playerConnection{
 		playerID:   loginMsg.Username,
 		ws:         ws,
 		outgoingCh: responseCh,
 	}
-	logrus.WithField("player", loginMsg.Username).Debugf("Created responseCh: %p, playerConn.outgoingCh: %p (same: %v)", 
+	logrus.WithField("player", loginMsg.Username).Debugf("Created responseCh: %p, playerConn.outgoingCh: %p (same: %v)",
 		&responseCh, &playerConn.outgoingCh, &responseCh == &playerConn.outgoingCh)
 
 	nm.playersMu.Lock()
@@ -124,10 +124,10 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 	logEntry.Debug("Starting handleWrite for player")
 	// Send login message to engine for processing
 	logEntry.Debug("Sending login message to engine")
-	nm.incomingCh <- playerMessage{
+	nm.incomingCh <- &playerMessage{
 		playerID:   loginMsg.Username,
 		message:    &incomingMessage{loginMessage: loginMsg},
-		responseCh: &responseCh,
+		responseCh: responseCh,
 	}
 	logEntry.Debugf("Login message sent to engine, responseCh pointer: %p", &responseCh)
 
@@ -175,10 +175,10 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 			continue
 		}
 
-		nm.incomingCh <- playerMessage{
+		nm.incomingCh <- &playerMessage{
 			playerID:   playerConn.playerID,
 			message:    &incoming,
-			responseCh: &playerConn.outgoingCh,
+			responseCh: playerConn.outgoingCh,
 		}
 	}
 }

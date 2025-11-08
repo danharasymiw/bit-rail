@@ -55,7 +55,7 @@ func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
 		if worldY >= len(r.w.Tiles) {
 			// Fill remaining rows with spaces if we run out of tiles
 			for relX := range width {
-				screenY := int(height) - 1 - relY
+				screenY := height - 1 - relY
 				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
 			}
 			continue
@@ -65,33 +65,33 @@ func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
 			worldX := pos.X + relX
 			if worldX >= len(row) {
 				// Fill with space if we run out of tiles in this row
-				screenY := int(height) - 1 - relY
+				screenY := height - 1 - relY
 				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
 				continue
 			}
 			tile := row[worldX]
 			if tile == nil {
 				// Fill with space if tile is nil
-				screenY := int(height) - 1 - relY
+				screenY := height - 1 - relY
 				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
 				continue
 			}
 			worldPos := world.Pos{X: worldX, Y: worldY}
 			ch, style := r.getTileChar(worldPos, tile)
-			screenY := int(height) - 1 - relY // Flip Y
+			screenY := height - 1 - relY // Flip Y
 			r.screen.SetContent(relX, screenY, ch, nil, style)
 		}
 	}
 }
 
 func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
-	posX, posY := int(pos.X), int(pos.Y)
+	posX, posY := pos.X, pos.Y
 	for _, t := range r.w.Trains {
 		// Assuming train limits of 100 - check the first car to see if its
 		// even possible to be on screen
 		if len(t.Cars) > 0 {
 			c := t.Cars[0]
-			if c.X < posX-100 || c.X >= posX+width+100 || c.Y < posY-100 || c.Y >= int(posY)+height+100 {
+			if c.X < posX-100 || c.X >= posX+width+100 || c.Y < posY-100 || c.Y >= posY+height+100 {
 				continue // Skip this train
 			}
 		}
@@ -103,7 +103,7 @@ func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
 			ch, col := r.getTrainCarChar(c)
 			style := tcell.StyleDefault.Foreground(col)
 			screenX := c.X - pos.X
-			screenY := height - 1 - (int(c.Y) - posY)
+			screenY := height - 1 - c.Y - posY
 
 			r.screen.SetContent(screenX, screenY, ch, nil, style)
 		}
@@ -206,7 +206,7 @@ func (r *SimpleRenderer) renderInfoPanel(x, y, width, height int) {
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 
 	// Draw border
-	for i := 0; i < int(height); i++ {
+	for i := 0; i < height; i++ {
 		r.screen.SetContent(x, y+i, '│', nil, borderStyle)
 	}
 

@@ -57,7 +57,7 @@ func (e *Engine) tick() {
 		e.moveTrain(t)
 	}
 
-	e.nm.broadcastCh <- outgoingMessage{
+	e.nm.broadcastCh <- &outgoingMessage{
 		worldUpdateMessage: &message.WorldUpdateMessage{
 			TilesUpdated:  e.tilesUpdated,
 			TracksUpdated: e.tracksUpdated,
@@ -182,8 +182,8 @@ func (e *Engine) getChunksInRegion(worldPos world.Pos) []*world.Chunk {
 	// Get 3x3 grid of chunks around the center
 	for i := -3; i <= 3; i++ {
 		for j := -3; j <= 3; j++ {
-			x := int(centerChunk.X) + i
-			y := int(centerChunk.Y) + j
+			x := centerChunk.X + i
+			y := centerChunk.Y + j
 			if x < 0 || y < 0 {
 				continue
 			}
@@ -196,7 +196,7 @@ func (e *Engine) getChunksInRegion(worldPos world.Pos) []*world.Chunk {
 	return chunks
 }
 
-func (e *Engine) handlePlayerMessage(playerMsg playerMessage) {
+func (e *Engine) handlePlayerMessage(playerMsg *playerMessage) {
 	msg := playerMsg.message
 	switch {
 	case msg.chatMessage != nil:
@@ -208,13 +208,13 @@ func (e *Engine) handlePlayerMessage(playerMsg playerMessage) {
 	}
 }
 
-func (e *Engine) handleChatMessage(playerMsg playerMessage) {
+func (e *Engine) handleChatMessage(playerMsg *playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.chatMessage.Message)
-	e.nm.broadcastCh <- outgoingMessage{chatMessage: playerMsg.message.chatMessage}
+	e.nm.broadcastCh <- &outgoingMessage{chatMessage: playerMsg.message.chatMessage}
 	entry.Debug("Player sent chat message")
 }
 
-func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
+func (e *Engine) handleLoginMessage(playerMsg *playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.loginMessage.Username)
 	entry.Debug("Processing login message")
 
@@ -228,14 +228,15 @@ func (e *Engine) handleLoginMessage(playerMsg playerMessage) {
 		Trains:    e.w.Trains,                                // TODO: get trains in region
 		Tracks:    message.TrackMapToTrackUpdate(e.w.Tracks), // TODO: get tracks in region
 	}
-	entry.Debugf("Sending initial load message to response channel (chunks: %d, trains: %d, tracks: %d)", 
+	entry.Debugf("Sending initial load message to response channel (chunks: %d, trains: %d, tracks: %d)",
 		len(initialLoadMessage.Chunks), len(initialLoadMessage.Trains), len(initialLoadMessage.Tracks))
-	entry.Debugf("Response channel pointer: %p, channel cap: %d, channel len: %d", playerMsg.responseCh, cap(*playerMsg.responseCh), len(*playerMsg.responseCh))
-	*playerMsg.responseCh <- outgoingMessage{initialLoadMessage: &initialLoadMessage}
-	entry.Debugf("Initial load message sent to response channel (channel len now: %d)", len(*playerMsg.responseCh))
+	playerMsg.responseCh <- &outgoingMessage{initialLoadMessage: &initialLoadMessage}
+	e.nm.broadcastCh <- &outgoingMessage{
+		chatMessage: &message.ChatMessage{},
+	}
 }
 
-func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
+func (e *Engine) handleGetChunksMessage(playerMsg *playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.getChunksMessage)
 
 	chunks := make([]*world.Chunk, 0, len(playerMsg.message.getChunksMessage.Positions))
@@ -248,13 +249,13 @@ func (e *Engine) handleGetChunksMessage(playerMsg playerMessage) {
 		}
 		chunks = append(chunks, e.w.ChunkAt(pos))
 	}
-	*playerMsg.responseCh <- outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}
+	playerMsg.responseCh <- &outgoingMessage{chunksMessage: &message.ChunksMessage{Chunks: chunks}}
 	entry.Debugf("Player requested chunks")
 }
 
 // BroadcastChatMessage sends a chat message to all connected players
 func (e *Engine) BroadcastChatMessage(author, msg string) {
-	e.nm.broadcastCh <- outgoingMessage{
+	e.nm.broadcastCh <- &outgoingMessage{
 		chatMessage: &message.ChatMessage{
 			Author:  author,
 			Message: msg,

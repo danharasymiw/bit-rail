@@ -23,8 +23,8 @@ type outgoingMessage struct {
 
 type clientNetworkManager struct {
 	ws         *websocket.Conn
-	incomingCh chan incomingMessage
-	outgoingCh chan outgoingMessage
+	incomingCh chan *incomingMessage
+	outgoingCh chan *outgoingMessage
 }
 
 func newClientNetworkManager() (*clientNetworkManager, error) {
@@ -34,8 +34,8 @@ func newClientNetworkManager() (*clientNetworkManager, error) {
 	}
 	return &clientNetworkManager{
 		ws:         ws,
-		incomingCh: make(chan incomingMessage, 100),
-		outgoingCh: make(chan outgoingMessage, 100),
+		incomingCh: make(chan *incomingMessage, 100),
+		outgoingCh: make(chan *outgoingMessage, 100),
 	}, nil
 }
 
@@ -98,7 +98,7 @@ func (nm *clientNetworkManager) readLoop() {
 			continue
 		}
 
-		nm.incomingCh <- incoming
+		nm.incomingCh <- &incoming
 	}
 }
 
