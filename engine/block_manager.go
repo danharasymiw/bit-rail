@@ -87,3 +87,19 @@ func (bm *blockManager) calculateBlock(x, y int, track *types.Track) *types.Bloc
 	}
 	return foundBlock
 }
+
+// TODO: This is duplicated in train.go
+func nextPos(pos types.Pos, dir types.Dir) types.Pos {
+	switch dir {
+	case types.DirNorth:
+		return types.Pos{X: pos.X, Y: pos.Y + 1}
+	case types.DirSouth:
+		return types.Pos{X: pos.X, Y: pos.Y - 1}
+	case types.DirEast:
+		return types.Pos{X: pos.X + 1, Y: pos.Y}
+	case types.DirWest:
+		return types.Pos{X: pos.X - 1, Y: pos.Y}
+	default:
+		return pos
+	}
+}

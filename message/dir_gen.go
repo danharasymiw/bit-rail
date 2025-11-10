@@ -10,16 +10,17 @@ import (
 )
 
 func WriteDir(w io.Writer, v *types.Dir) error {
-	if err := binaryWrite(w, *v); err != nil {
+	if err := binaryWrite(w, uint8(*v)); err != nil {
 		return fmt.Errorf("error writing Dir: %v", err)
 	}
 	return nil
 }
 
 func ReadDir(r io.Reader) (*types.Dir, error) {
-	var v types.Dir
-	if err := binaryRead(r, &v); err != nil {
+	var raw uint8
+	if err := binaryRead(r, &raw); err != nil {
 		return nil, fmt.Errorf("error reading Dir: %v", err)
 	}
+	v := types.Dir(raw)
 	return &v, nil
 }

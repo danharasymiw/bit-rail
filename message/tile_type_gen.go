@@ -10,16 +10,17 @@ import (
 )
 
 func WriteTileType(w io.Writer, v *types.TileType) error {
-	if err := binaryWrite(w, *v); err != nil {
+	if err := binaryWrite(w, uint8(*v)); err != nil {
 		return fmt.Errorf("error writing TileType: %v", err)
 	}
 	return nil
 }
 
 func ReadTileType(r io.Reader) (*types.TileType, error) {
-	var v types.TileType
-	if err := binaryRead(r, &v); err != nil {
+	var raw uint8
+	if err := binaryRead(r, &raw); err != nil {
 		return nil, fmt.Errorf("error reading TileType: %v", err)
 	}
+	v := types.TileType(raw)
 	return &v, nil
 }

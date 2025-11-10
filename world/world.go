@@ -35,9 +35,12 @@ func New(width, height int) *World {
 	return w
 }
 
-// TileAt exists incase we decide to switch to a 1D array for the world
 func (w *World) TileAt(pos types.Pos) *types.Tile {
 	return w.Tiles[pos.Y][pos.X]
+}
+
+func (w *World) TrackAt(pos types.Pos) *types.Track {
+	return w.Tracks[pos]
 }
 
 type Chunk struct {

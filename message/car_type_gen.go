@@ -10,16 +10,17 @@ import (
 )
 
 func WriteCarType(w io.Writer, v *trains.CarType) error {
-	if err := binaryWrite(w, *v); err != nil {
+	if err := binaryWrite(w, uint32(*v)); err != nil {
 		return fmt.Errorf("error writing CarType: %v", err)
 	}
 	return nil
 }
 
 func ReadCarType(r io.Reader) (*trains.CarType, error) {
-	var v trains.CarType
-	if err := binaryRead(r, &v); err != nil {
+	var raw uint32
+	if err := binaryRead(r, &raw); err != nil {
 		return nil, fmt.Errorf("error reading CarType: %v", err)
 	}
+	v := trains.CarType(raw)
 	return &v, nil
 }

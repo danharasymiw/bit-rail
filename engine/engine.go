@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/danharasymiw/bit-rail/message"
-	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/sirupsen/logrus"
@@ -57,7 +56,7 @@ func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
 
 func (e *Engine) tick() {
 	for _, t := range e.w.Trains {
-		e.moveTrain(t)
+		t.Tick(e.w)
 	}
 
 	e.nm.broadcastCh <- &outgoingMessage{
@@ -69,112 +68,6 @@ func (e *Engine) tick() {
 	}
 
 	e.tilesUpdated = make([]*message.TileUpdate, 0)
-}
-
-func (e *Engine) moveTrain(t *trains.Train) {
-	// TODO investigate if this function makes more sense to turn/figure out direction then move
-	// Currently we move, and then figure out out next direction
-	if !t.IsMoving {
-		return
-	}
-
-	car := t.Cars[0]
-	moveDir := car.Direction
-	if t.IsReversing {
-		car = t.Cars[len(t.Cars)-1]
-		moveDir = types.OppositeDir(car.Direction)
-	}
-
-	pos := types.Pos{X: car.X, Y: car.Y}
-	dir := car.Direction
-	nextPos := nextPos(pos, dir)
-	nextTile := e.w.TileAt(nextPos)
-	if nextTile.Type != types.TileTrack {
-		return
-	}
-
-	if e.w.OccupiedAt(nextPos) {
-		return
-	}
-
-	e.moveCars(t.Cars, moveDir, t.IsReversing)
-
-	car = t.Cars[0]
-	if t.IsReversing {
-		car = t.Cars[len(t.Cars)-1]
-		car.Direction = types.OppositeDir(car.Direction)
-	}
-	pos = types.Pos{X: car.X, Y: car.Y}
-	dir = car.Direction
-	track := e.w.Tracks[pos]
-	if track == nil {
-		return
-	}
-
-	incFrom := types.OppositeDir(dir)
-	if track.Direction&incFrom == 0 {
-		return
-	}
-
-	outgoing := track.Direction & ^incFrom
-
-	if outgoing != 0 && (outgoing&(outgoing-1)) == 0 {
-		car.Direction = outgoing & -outgoing
-		return
-	}
-
-	if outgoing&dir != 0 {
-		return
-	}
-
-	for d := types.DirNorth; d <= types.DirWest; d <<= 1 {
-		if outgoing&types.Dir(d) != 0 {
-			car.Direction = types.Dir(d)
-			return
-		}
-	}
-}
-
-func (e *Engine) moveCars(cars []*trains.TrainCar, moveDir types.Dir, reverse bool) {
-	start, end, step := 0, len(cars), 1
-	if reverse {
-		start, end, step = len(cars)-1, -1, -1
-	}
-
-	car := cars[start]
-
-	newPos := nextPos(types.Pos{X: car.X, Y: car.Y}, moveDir)
-
-	prevPos := types.Pos{X: car.X, Y: car.Y}
-	prevDir := moveDir
-	car.X, car.Y = newPos.X, newPos.Y
-	e.w.SetOccupied(types.Pos{X: car.X, Y: car.Y})
-
-	for i := start + step; i != end; i += step {
-		car = cars[i]
-		thisPrevPos := types.Pos{X: car.X, Y: car.Y}
-		thisPrevDir := car.Direction
-
-		car.X, car.Y, car.Direction = prevPos.X, prevPos.Y, prevDir
-
-		prevPos, prevDir = thisPrevPos, thisPrevDir
-	}
-	e.w.UnsetOccupied(prevPos)
-}
-
-func nextPos(pos types.Pos, dir types.Dir) types.Pos {
-	switch dir {
-	case types.DirNorth:
-		return types.Pos{X: pos.X, Y: pos.Y + 1}
-	case types.DirSouth:
-		return types.Pos{X: pos.X, Y: pos.Y - 1}
-	case types.DirEast:
-		return types.Pos{X: pos.X + 1, Y: pos.Y}
-	case types.DirWest:
-		return types.Pos{X: pos.X - 1, Y: pos.Y}
-	default:
-		return pos
-	}
 }
 
 func (e *Engine) getChunksInRegion(worldPos types.Pos) []*world.Chunk {

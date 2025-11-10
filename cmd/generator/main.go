@@ -39,8 +39,8 @@ func main() {
 	}
 
 	// Find the target type (struct or alias)
-	var structType *ast.StructType
-	var aliasType string // underlying type if this is an alias
+    var structType *ast.StructType
+    var aliasType string // underlying type name if this is a defined type alias
 	var pkgName string
 
 	for name, pkg := range pkgs {
@@ -68,7 +68,7 @@ func main() {
 		}
 	}
 
-	if structType == nil && aliasType == "" {
+    if structType == nil && aliasType == "" {
 		log.Fatalf("could not find type %s", *typeFlag)
 	}
 
@@ -80,11 +80,11 @@ func main() {
 
 	// Generate code
 	var code string
-	if structType != nil {
-		code = generateStructSerializer(*typeFlag, pkgName, structType, qualifiedType)
-	} else {
-		code = generateAliasSerializer(*typeFlag, pkgName, qualifiedType)
-	}
+    if structType != nil {
+        code = generateStructSerializer(*typeFlag, pkgName, structType, qualifiedType)
+    } else {
+        code = generateAliasSerializer(*typeFlag, pkgName, qualifiedType, aliasType)
+    }
 
 	// Write output
 	if err := os.WriteFile(*outputFlag, []byte(code), 0o644); err != nil {
@@ -402,7 +402,7 @@ func isPrimitiveType(typeName string) bool {
 	return primitives[typeName]
 }
 
-func generateAliasSerializer(typeName, pkgName, qualifiedType string) string {
+func generateAliasSerializer(typeName, pkgName, qualifiedType, underlying string) string {
 	var builder strings.Builder
 
 	// Header
@@ -419,21 +419,38 @@ func generateAliasSerializer(typeName, pkgName, qualifiedType string) string {
 
 	builder.WriteString(")\n\n")
 
-	// Write function for alias - just wraps binaryWrite
+    // Write function for alias - cast to underlying fixed-size type
 	builder.WriteString(fmt.Sprintf("func Write%s(w io.Writer, v *%s) error {\n", typeName, qualifiedType))
-	builder.WriteString("\tif err := binaryWrite(w, *v); err != nil {\n")
+    // For int/uint (variable-sized), downcast to 32-bit to keep wire format stable
+    castTarget := underlying
+    switch underlying {
+    case "int":
+        castTarget = "int32"
+    case "uint":
+        castTarget = "uint32"
+    }
+    builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, %s(*v)); err != nil {\n", castTarget))
 	builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", typeName))
 	builder.WriteString("\t}\n")
 	builder.WriteString("\treturn nil\n")
 	builder.WriteString("}\n\n")
 
-	// Read function for alias - just wraps binaryRead
+    // Read function for alias - read underlying and cast back
 	builder.WriteString(fmt.Sprintf("func Read%s(r io.Reader) (*%s, error) {\n", typeName, qualifiedType))
-	builder.WriteString(fmt.Sprintf("\tvar v %s\n", qualifiedType))
-	builder.WriteString("\tif err := binaryRead(r, &v); err != nil {\n")
+    // Use a fixed-size read target for int/uint as above
+    readTarget := underlying
+    switch underlying {
+    case "int":
+        readTarget = "int32"
+    case "uint":
+        readTarget = "uint32"
+    }
+    builder.WriteString(fmt.Sprintf("\tvar raw %s\n", readTarget))
+    builder.WriteString("\tif err := binaryRead(r, &raw); err != nil {\n")
 	builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", typeName))
 	builder.WriteString("\t}\n")
-	builder.WriteString("\treturn &v, nil\n")
+    builder.WriteString(fmt.Sprintf("\tv := %s(raw)\n", qualifiedType))
+    builder.WriteString("\treturn &v, nil\n")
 	builder.WriteString("}\n")
 
 	return builder.String()
