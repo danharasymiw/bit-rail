@@ -95,6 +95,7 @@ func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
 				continue // Skip this train
 			}
 		}
+
 		for _, c := range t.Cars {
 			if c.X < posX || c.X >= posX+width || c.Y < posY || c.Y >= posY+height {
 				continue // Skip this car
@@ -103,7 +104,7 @@ func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
 			ch, col := r.getTrainCarChar(c)
 			style := tcell.StyleDefault.Foreground(col)
 			screenX := c.X - pos.X
-			screenY := height - 1 - c.Y - posY
+			screenY := height - 1 - (c.Y - posY)
 
 			r.screen.SetContent(screenX, screenY, ch, nil, style)
 		}

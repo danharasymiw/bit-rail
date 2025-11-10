@@ -61,19 +61,16 @@ func (c *Client) Run() error {
 	}
 	c.nm.start()
 
-	logrus.Debugf("Sending login message with username: %s", c.username)
 	c.nm.outgoingCh <- &outgoingMessage{
 		loginMessage: &message.LoginMessage{
 			Username: c.username,
 		},
 	}
-	logrus.Debug("Login message sent, waiting for initial load...")
 
 	if err := c.waitForInitialLoad(); err != nil {
 		logrus.Errorf("Error waiting for initial load: %v", err)
 		return err
 	}
-	logrus.Debug("Initial load completed successfully")
 
 	c.r = NewSimpleRenderer(screen, c.w)
 
@@ -131,14 +128,11 @@ func (c *Client) Run() error {
 }
 
 func (c *Client) waitForInitialLoad() error {
-	logrus.Debug("Waiting for initial load message...")
 	for incoming := range c.nm.incomingCh {
 		if incoming.initialLoadMessage != nil {
-			logrus.Debug("Initial load message received, handling...")
 			return c.handleInitialLoad(incoming.initialLoadMessage)
 		}
 	}
-	logrus.Debug("incomingCh channel closed before receiving initial load message")
 	return nil
 }
 

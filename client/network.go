@@ -50,7 +50,7 @@ func (nm *clientNetworkManager) readLoop() {
 	for {
 		_, reader, err := nm.ws.NextReader()
 		if err != nil {
-			logrus.Debugf("WebSocket read error: %v", err)
+			logrus.Errorf("WebSocket read error: %v", err)
 			return
 		}
 
@@ -63,14 +63,11 @@ func (nm *clientNetworkManager) readLoop() {
 		var incoming incomingMessage
 		switch msgType {
 		case message.MessageTypeInitialLoad:
-			logrus.Debug("Reading initial load message...")
 			incoming.initialLoadMessage, err = message.ReadInitialLoadMessage(reader)
 			if err != nil {
 				logrus.Errorf("Error reading initial load message: %v", err)
 				continue
 			}
-			logrus.Debugf("Successfully read initial load message (chunks: %d, trains: %d, tracks: %d)",
-				len(incoming.initialLoadMessage.Chunks), len(incoming.initialLoadMessage.Trains), len(incoming.initialLoadMessage.Tracks))
 
 		case message.MessageTypeChat:
 			incoming.chatMessage, err = message.ReadChatMessage(reader)
@@ -94,7 +91,7 @@ func (nm *clientNetworkManager) readLoop() {
 			}
 
 		default:
-			logrus.Debugf("Unknown incoming message type: %d", msgType)
+			logrus.Errorf("Unknown incoming message type: %d", msgType)
 			continue
 		}
 
