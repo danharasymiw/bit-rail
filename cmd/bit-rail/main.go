@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/danharasymiw/bit-rail/client"
@@ -11,23 +13,55 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func setupLogging(logFile string, debugMode bool) *os.File {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+
+	if debugMode {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+
+	// Open log file
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+	if err != nil {
+		logrus.Fatalf("Failed to open log file %s: %v", logFile, err)
+	}
+
+	// Write to both file and stdout
+	multiWriter := io.MultiWriter(os.Stdout, f)
+	logrus.SetOutput(multiWriter)
+
+	return f
+}
+
 func main() {
 	serverMode := flag.Bool("server", false, "Run as headless server")
 	localMode := flag.Bool("local", false, "Run server and client together")
 	debugMode := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
-	if *debugMode {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
+	var logFile *os.File
+	defer func() {
+		if logFile != nil {
+			logFile.Close()
+		}
+	}()
 
+	// w := test_worlds.NewPerlinWorld(123, 123)
+	w := test_worlds.IntersectingLoopsTestWorld()
+	tickDur := 500 * time.Millisecond
 	if *serverMode {
-		w := test_worlds.NewPerlinWorld(123, 123)
-		eng := engine.New(w, 150*time.Millisecond)
+		logFile = setupLogging("server.log", *debugMode)
+		logrus.Info("Starting server in headless mode")
+		eng := engine.New(w, tickDur)
 		eng.Run(make(chan struct{}), make(chan struct{}))
 	} else if *localMode {
-		w := test_worlds.NewPerlinWorld(123, 123)
-		eng := engine.New(w, 150*time.Millisecond)
+		logFile = setupLogging("server.log", *debugMode)
+		logrus.Info("Starting server and client in local mode")
+		eng := engine.New(w, tickDur)
 
 		c, quitCh := client.New()
 		readyCh := make(chan struct{})
@@ -39,10 +73,12 @@ func main() {
 		logrus.Info("Server ready, starting client...")
 
 		if err := c.Run(); err != nil {
-			logrus.Printf("Client error: %v", err)
+			logrus.Errorf("Client error: %v", err)
 		}
 	} else {
 		// Default: Run as client only
+		logFile = setupLogging("client.log", *debugMode)
+		logrus.Info("Starting client")
 		c, _ := client.New()
 		if err := c.Run(); err != nil {
 			log.Fatal(err)

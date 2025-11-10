@@ -4,105 +4,73 @@ import (
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
+	"github.com/google/uuid"
 )
 
 func IntersectingLoopsTestWorld() *world.World {
-	w := world.New(50, 50)
+	w := world.New(500, 500)
 
-	// Draw a simple world
-
-	// First track
-	// Simple horizontal tracks
-	for x := 5; x <= 15; x++ {
-		w.AddTrack(world.Pos{X: x, Y: 10}, &types.Track{Direction: types.DirEast | types.DirWest})
-		w.AddTrack(world.Pos{X: x, Y: 7}, &types.Track{Direction: types.DirEast | types.DirWest})
+	for x := 300; x < 351; x++ {
+		w.AddTrack(world.Pos{X: x, Y: 290}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(world.Pos{X: x, Y: 270}, &types.Track{Direction: types.DirEast | types.DirWest})
 	}
-
-	// Vertical connections for the loop
-	for y := 7; y <= 10; y++ {
-		w.AddTrack(world.Pos{X: 5, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
-		w.AddTrack(world.Pos{X: 15, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+	for y := 270; y < 291; y++ {
+		w.AddTrack(world.Pos{X: 300, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(world.Pos{X: 350, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
 	}
+	w.AddTrack(world.Pos{X: 300, Y: 290}, &types.Track{Direction: types.DirEast | types.DirSouth})
+	w.AddTrack(world.Pos{X: 300, Y: 270}, &types.Track{Direction: types.DirEast | types.DirNorth})
+	w.AddTrack(world.Pos{X: 350, Y: 290}, &types.Track{Direction: types.DirWest | types.DirSouth})
+	w.AddTrack(world.Pos{X: 350, Y: 270}, &types.Track{Direction: types.DirWest | types.DirNorth})
 
-	// Corners
-	w.AddTrack(world.Pos{X: 5, Y: 7}, &types.Track{Direction: types.DirSouth | types.DirEast})
-	w.AddTrack(world.Pos{X: 15, Y: 7}, &types.Track{Direction: types.DirSouth | types.DirWest})
-	w.AddTrack(world.Pos{X: 5, Y: 10}, &types.Track{Direction: types.DirNorth | types.DirEast})
-	w.AddTrack(world.Pos{X: 15, Y: 10}, &types.Track{Direction: types.DirNorth | types.DirWest})
-
+	trainCars := make([]*trains.TrainCar, 0)
+	for i := range 30 {
+		trainCars = append(trainCars,
+			&trains.TrainCar{
+				X: 340 - i, Y: 290,
+				Type:      trains.CarTypeCargo,
+				Direction: types.DirEast,
+			},
+		)
+	}
+	trainCars[0].Type = trains.CarTypeLocomotive
 	w.AddTrain(&trains.Train{
+		ID:       uuid.New(),
 		IsMoving: true,
-		Cars: []*trains.TrainCar{
-			{Type: trains.CarTypeLocomotive, X: 9, Y: 10, Direction: types.DirWest},
-			{Type: trains.CarTypeCargo, X: 10, Y: 10, Direction: types.DirWest},
-			{Type: trains.CarTypeCargo, X: 11, Y: 10, Direction: types.DirWest},
-			{Type: trains.CarTypeCargo, X: 12, Y: 10, Direction: types.DirWest},
-			{Type: trains.CarTypeCargo, X: 13, Y: 10, Direction: types.DirWest},
-			{Type: trains.CarTypeCargo, X: 14, Y: 10, Direction: types.DirWest},
-		},
+		Cars:     trainCars,
 	})
 
-	// Second track
-	for x := 10; x <= 17; x++ {
-		w.AddTrack(world.Pos{X: x, Y: 12}, &types.Track{Direction: types.DirEast | types.DirWest})
-		w.AddTrack(world.Pos{X: x, Y: 9}, &types.Track{Direction: types.DirEast | types.DirWest})
+	for x := 325; x < 361; x++ {
+		w.AddTrack(world.Pos{X: x, Y: 275}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(world.Pos{X: x, Y: 265}, &types.Track{Direction: types.DirEast | types.DirWest})
 	}
-
-	// Vertical connections for the loop
-	for y := 9; y <= 12; y++ {
-		w.AddTrack(world.Pos{X: 10, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
-		w.AddTrack(world.Pos{X: 17, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+	for y := 265; y < 276; y++ {
+		w.AddTrack(world.Pos{X: 325, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(world.Pos{X: 360, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
 	}
+	w.AddTrack(world.Pos{X: 325, Y: 275}, &types.Track{Direction: types.DirEast | types.DirSouth})
+	w.AddTrack(world.Pos{X: 325, Y: 265}, &types.Track{Direction: types.DirEast | types.DirNorth})
+	w.AddTrack(world.Pos{X: 360, Y: 275}, &types.Track{Direction: types.DirWest | types.DirSouth})
+	w.AddTrack(world.Pos{X: 360, Y: 265}, &types.Track{Direction: types.DirWest | types.DirNorth})
+	w.AddTrack(world.Pos{X: 325, Y: 270}, &types.Track{Direction: types.DirWest | types.DirNorth | types.DirSouth | types.DirEast})
+	w.AddTrack(world.Pos{X: 350, Y: 275}, &types.Track{Direction: types.DirWest | types.DirNorth | types.DirSouth | types.DirEast})
 
-	// Corners
-	w.AddTrack(world.Pos{X: 10, Y: 9}, &types.Track{Direction: types.DirSouth | types.DirEast})
-	w.AddTrack(world.Pos{X: 17, Y: 9}, &types.Track{Direction: types.DirSouth | types.DirWest})
-	w.AddTrack(world.Pos{X: 10, Y: 12}, &types.Track{Direction: types.DirNorth | types.DirEast})
-	w.AddTrack(world.Pos{X: 17, Y: 12}, &types.Track{Direction: types.DirNorth | types.DirWest})
-
-	// Junctions
-	w.AddTrack(world.Pos{X: 10, Y: 10}, &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest})
-	w.AddTrack(world.Pos{X: 15, Y: 9}, &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirEast | types.DirWest})
-
-	w.Trains = append(w.Trains, &trains.Train{
+	trainCars2 := make([]*trains.TrainCar, 0)
+	for i := range 20 {
+		trainCars2 = append(trainCars2,
+			&trains.TrainCar{
+				X: 360 - i, Y: 265,
+				Type:      trains.CarTypeCargo,
+				Direction: types.DirNorth,
+			},
+		)
+	}
+	trainCars2[0].Type = trains.CarTypeLocomotive
+	w.AddTrain(&trains.Train{
+		ID:       uuid.New(),
 		IsMoving: true,
-		Cars: []*trains.TrainCar{
-			{Type: trains.CarTypeLocomotive, X: 13, Y: 12, Direction: types.DirEast},
-			{Type: trains.CarTypeCargo, X: 12, Y: 12, Direction: types.DirEast},
-			{Type: trains.CarTypeCargo, X: 11, Y: 12, Direction: types.DirEast},
-		},
+		Cars:     trainCars2,
 	})
-
-	// water
-	waterCoords := []struct{ x, y int }{
-		{35, 35},
-		{36, 35},
-		{37, 35},
-		{38, 35},
-		{39, 35},
-		{40, 35},
-		{41, 35},
-		{35, 36},
-		{36, 36},
-		{37, 36},
-		{38, 36},
-		{39, 36},
-		{40, 36},
-		{35, 37},
-		{36, 37},
-		{37, 37},
-		{38, 37},
-		{36, 38},
-		{37, 38},
-		{38, 38},
-		{39, 38},
-		{37, 39},
-		{38, 39},
-	}
-
-	for _, coord := range waterCoords {
-		w.Tiles[coord.y][coord.x] = &types.Tile{Type: types.TileWater}
-	}
 
 	return w
 }

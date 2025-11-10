@@ -112,24 +112,18 @@ func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
 		ws:         ws,
 		outgoingCh: responseCh,
 	}
-	logrus.WithField("player", loginMsg.Username).Debugf("Created responseCh: %p, playerConn.outgoingCh: %p (same: %v)",
-		&responseCh, &playerConn.outgoingCh, &responseCh == &playerConn.outgoingCh)
 
 	nm.playersMu.Lock()
 	nm.players[loginMsg.Username] = playerConn
 	nm.playersMu.Unlock()
 
 	go nm.handleRead(playerConn)
-	logEntry := logrus.WithField("player", loginMsg.Username)
-	logEntry.Debug("Starting handleWrite for player")
 	// Send login message to engine for processing
-	logEntry.Debug("Sending login message to engine")
 	nm.incomingCh <- &playerMessage{
 		playerID:   loginMsg.Username,
 		message:    &incomingMessage{loginMessage: loginMsg},
 		responseCh: responseCh,
 	}
-	logEntry.Debugf("Login message sent to engine, responseCh pointer: %p", &responseCh)
 
 	nm.handleWrite(playerConn)
 }
@@ -142,13 +136,13 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 	for {
 		_, reader, err := playerConn.ws.NextReader()
 		if err != nil {
-			logEntry.Debugf("WebSocket read error: %v", err)
+			logEntry.Errorf("WebSocket read error: %v", err)
 			return
 		}
 
 		msgType, err := message.GetMessageType(reader)
 		if err != nil {
-			logEntry.Debugf("Error reading message type: %v", err)
+			logEntry.Errorf("Error reading message type: %v", err)
 			continue
 		}
 
@@ -171,7 +165,7 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 			}
 
 		default:
-			logEntry.Debugf("Unknown incoming message type: %d", msgType)
+			logEntry.Errorf("Unknown incoming message type: %d", msgType)
 			continue
 		}
 
@@ -185,30 +179,20 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 
 func (nm *networkManager) handleWrite(playerConn *playerConnection) {
 	logEntry := logrus.WithField("playerID", playerConn.playerID)
-	logEntry.Debugf("handleWrite started, waiting for messages on channel (cap: %d, len: %d)", cap(playerConn.outgoingCh), len(playerConn.outgoingCh))
 	for outgoing := range playerConn.outgoingCh {
-		logEntry.Debugf("handleWrite received message (initialLoad: %v, chat: %v, chunks: %v, worldUpdate: %v)",
-			outgoing.initialLoadMessage != nil, outgoing.chatMessage != nil, outgoing.chunksMessage != nil, outgoing.worldUpdateMessage != nil)
 		var writeErr error
 		if outgoing.initialLoadMessage != nil {
-			logEntry.Debug("About to call WriteMessage for initial load")
 			writeErr = message.WriteMessage(playerConn.ws, message.MessageTypeInitialLoad, func(w io.Writer) error {
-				logEntry.Debug("Inside WriteMessage callback, writing initial load message body")
 				err := message.WriteInitialLoadMessage(w, outgoing.initialLoadMessage)
 				if err != nil {
 					logEntry.Errorf("WriteInitialLoadMessage returned error: %v", err)
-				} else {
-					logEntry.Debug("WriteInitialLoadMessage completed successfully")
 				}
 				return err
 			})
 			if writeErr != nil {
 				logEntry.Errorf("Error writing initial load message: %v", writeErr)
-			} else {
-				logEntry.Debug("Initial load message written successfully to websocket")
 			}
 		} else if outgoing.chatMessage != nil {
-			println("Sending chat message")
 			writeErr = message.WriteMessage(playerConn.ws, message.MessageTypeChat, func(w io.Writer) error {
 				return message.WriteChatMessage(w, outgoing.chatMessage)
 			})
@@ -251,7 +235,7 @@ func (nm *networkManager) disconnectPlayer(playerID string) {
 	if player, exists := nm.players[playerID]; exists {
 		close(player.outgoingCh)
 		delete(nm.players, playerID)
-		logrus.Debugf("Player %s disconnected", playerID)
+		logrus.Infof("Player %s disconnected", playerID)
 		// Close websocket connection after removing from map to avoid concurrent access
 		ws := player.ws
 		nm.playersMu.Unlock()
