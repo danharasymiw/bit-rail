@@ -20,7 +20,7 @@ func (bm *blockManager) calculateBlock(x, y int, track *types.Track) *types.Bloc
 
 	type QueueItem struct {
 		track       *types.Track
-		pos         world.Pos
+		pos         types.Pos
 		enteredFrom types.Dir
 		distance    int
 	}
@@ -29,7 +29,7 @@ func (bm *blockManager) calculateBlock(x, y int, track *types.Track) *types.Bloc
 	queue = append(queue,
 		QueueItem{
 			track:       track,
-			pos:         world.Pos{X: x, Y: y},
+			pos:         types.Pos{X: x, Y: y},
 			enteredFrom: types.OppositeDir(track.SignalDir),
 			distance:    0,
 		})

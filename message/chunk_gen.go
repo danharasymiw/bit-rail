@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
+	"github.com/danharasymiw/bit-rail/types"
 )
 
 func WriteChunk(w io.Writer, v *world.Chunk) error {

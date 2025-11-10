@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/danharasymiw/bit-rail/message"
+	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/gdamore/tcell"
 	"github.com/sirupsen/logrus"
@@ -12,14 +13,14 @@ import (
 
 type Client struct {
 	w            *world.World
-	chunksLoaded map[world.Pos]struct{}
+	chunksLoaded map[types.Pos]struct{}
 	chatMessages []ChatMessage
 	username     string
 
 	running bool
 	nm      *clientNetworkManager
 
-	camPos   world.Pos
+	camPos   types.Pos
 	camSpeed int
 	r        Renderer
 
@@ -139,7 +140,7 @@ func (c *Client) waitForInitialLoad() error {
 func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 	c.w = world.New(msg.Width, msg.Height)
 	c.camPos = msg.CameraPos
-	c.chunksLoaded = make(map[world.Pos]struct{})
+	c.chunksLoaded = make(map[types.Pos]struct{})
 
 	for _, chunk := range msg.Chunks {
 		c.chunksLoaded[chunk.Pos] = struct{}{}
@@ -242,18 +243,18 @@ func (c *Client) loadChunksAroundCamera() {
 	maxChunkX := c.w.Width / world.ChunkSize
 	maxChunkY := c.w.Height / world.ChunkSize
 
-	chunkPositions := make([]world.Pos, 0, (2*chunkRadius+1)*(2*chunkRadius+1))
+	chunkPositions := make([]types.Pos, 0, (2*chunkRadius+1)*(2*chunkRadius+1))
 	for dx := minChunkX; dx <= maxChunkX; dx++ {
 		for dy := minChunkY; dy <= maxChunkY; dy++ {
-			chunkPositions = append(chunkPositions, world.Pos{X: centerChunk.X + dx, Y: centerChunk.Y + dy})
+			chunkPositions = append(chunkPositions, types.Pos{X: centerChunk.X + dx, Y: centerChunk.Y + dy})
 		}
 	}
 
 	c.getChunks(chunkPositions)
 }
 
-func (c *Client) getChunks(positions []world.Pos) {
-	missingChunkPositions := make([]world.Pos, 0)
+func (c *Client) getChunks(positions []types.Pos) {
+	missingChunkPositions := make([]types.Pos, 0)
 	for _, coord := range positions {
 		if _, ok := c.chunksLoaded[coord]; ok {
 			continue

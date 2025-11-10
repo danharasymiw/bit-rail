@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/world"
+	"github.com/danharasymiw/bit-rail/types"
 )
 
 func WriteGetChunksMessage(w io.Writer, v *GetChunksMessage) error {
@@ -30,7 +30,7 @@ func ReadGetChunksMessage(r io.Reader) (*GetChunksMessage, error) {
 	if err := binaryRead(r, &PositionsLen); err != nil {
 		return nil, fmt.Errorf("error reading Positions length: %v", err)
 	}
-	v.Positions = make([]world.Pos, PositionsLen)
+	v.Positions = make([]types.Pos, PositionsLen)
 	for i := range v.Positions {
 		elem, err := ReadPos(r)
 		if err != nil {

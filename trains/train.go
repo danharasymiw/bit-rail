@@ -15,7 +15,7 @@ type Train struct {
 	Cars []*TrainCar
 }
 
-type CarType uint8
+type CarType uint
 
 const (
 	CarTypeLocomotive CarType = iota
@@ -27,4 +27,7 @@ type TrainCar struct {
 	X, Y      int `binary:"uint16"`
 	Direction types.Dir
 	Type      CarType
+}
+
+func (t *Train) Tick(w trainWorldView) {
 }

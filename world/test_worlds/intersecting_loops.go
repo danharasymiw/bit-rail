@@ -11,17 +11,17 @@ func IntersectingLoopsTestWorld() *world.World {
 	w := world.New(500, 500)
 
 	for x := 300; x < 351; x++ {
-		w.AddTrack(world.Pos{X: x, Y: 290}, &types.Track{Direction: types.DirEast | types.DirWest})
-		w.AddTrack(world.Pos{X: x, Y: 270}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(types.Pos{X: x, Y: 290}, &types.Track{Direction: types.DirEastWest})
+		w.AddTrack(types.Pos{X: x, Y: 270}, &types.Track{Direction: types.DirEastWest})
 	}
 	for y := 270; y < 291; y++ {
-		w.AddTrack(world.Pos{X: 300, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
-		w.AddTrack(world.Pos{X: 350, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(types.Pos{X: 300, Y: y}, &types.Track{Direction: types.DirNorthSouth})
+		w.AddTrack(types.Pos{X: 350, Y: y}, &types.Track{Direction: types.DirNorthSouth})
 	}
-	w.AddTrack(world.Pos{X: 300, Y: 290}, &types.Track{Direction: types.DirEast | types.DirSouth})
-	w.AddTrack(world.Pos{X: 300, Y: 270}, &types.Track{Direction: types.DirEast | types.DirNorth})
-	w.AddTrack(world.Pos{X: 350, Y: 290}, &types.Track{Direction: types.DirWest | types.DirSouth})
-	w.AddTrack(world.Pos{X: 350, Y: 270}, &types.Track{Direction: types.DirWest | types.DirNorth})
+	w.AddTrack(types.Pos{X: 300, Y: 290}, &types.Track{Direction: types.DirSouthEast})
+	w.AddTrack(types.Pos{X: 300, Y: 270}, &types.Track{Direction: types.DirNorthEast})
+	w.AddTrack(types.Pos{X: 350, Y: 290}, &types.Track{Direction: types.DirSouthWest})
+	w.AddTrack(types.Pos{X: 350, Y: 270}, &types.Track{Direction: types.DirNorthWest})
 
 	trainCars := make([]*trains.TrainCar, 0)
 	for i := range 30 {
@@ -41,19 +41,19 @@ func IntersectingLoopsTestWorld() *world.World {
 	})
 
 	for x := 325; x < 361; x++ {
-		w.AddTrack(world.Pos{X: x, Y: 275}, &types.Track{Direction: types.DirEast | types.DirWest})
-		w.AddTrack(world.Pos{X: x, Y: 265}, &types.Track{Direction: types.DirEast | types.DirWest})
+		w.AddTrack(types.Pos{X: x, Y: 275}, &types.Track{Direction: types.DirEastWest})
+		w.AddTrack(types.Pos{X: x, Y: 265}, &types.Track{Direction: types.DirEastWest})
 	}
 	for y := 265; y < 276; y++ {
-		w.AddTrack(world.Pos{X: 325, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
-		w.AddTrack(world.Pos{X: 360, Y: y}, &types.Track{Direction: types.DirNorth | types.DirSouth})
+		w.AddTrack(types.Pos{X: 325, Y: y}, &types.Track{Direction: types.DirNorthSouth})
+		w.AddTrack(types.Pos{X: 360, Y: y}, &types.Track{Direction: types.DirNorthSouth})
 	}
-	w.AddTrack(world.Pos{X: 325, Y: 275}, &types.Track{Direction: types.DirEast | types.DirSouth})
-	w.AddTrack(world.Pos{X: 325, Y: 265}, &types.Track{Direction: types.DirEast | types.DirNorth})
-	w.AddTrack(world.Pos{X: 360, Y: 275}, &types.Track{Direction: types.DirWest | types.DirSouth})
-	w.AddTrack(world.Pos{X: 360, Y: 265}, &types.Track{Direction: types.DirWest | types.DirNorth})
-	w.AddTrack(world.Pos{X: 325, Y: 270}, &types.Track{Direction: types.DirWest | types.DirNorth | types.DirSouth | types.DirEast})
-	w.AddTrack(world.Pos{X: 350, Y: 275}, &types.Track{Direction: types.DirWest | types.DirNorth | types.DirSouth | types.DirEast})
+	w.AddTrack(types.Pos{X: 325, Y: 275}, &types.Track{Direction: types.DirSouthEast})
+	w.AddTrack(types.Pos{X: 325, Y: 265}, &types.Track{Direction: types.DirNorthEast})
+	w.AddTrack(types.Pos{X: 360, Y: 275}, &types.Track{Direction: types.DirSouthWest})
+	w.AddTrack(types.Pos{X: 360, Y: 265}, &types.Track{Direction: types.DirNorthWest})
+	w.AddTrack(types.Pos{X: 325, Y: 270}, &types.Track{Direction: types.DirFourWay})
+	w.AddTrack(types.Pos{X: 350, Y: 275}, &types.Track{Direction: types.DirFourWay})
 
 	trainCars2 := make([]*trains.TrainCar, 0)
 	for i := range 20 {

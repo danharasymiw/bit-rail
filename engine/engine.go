@@ -85,7 +85,7 @@ func (e *Engine) moveTrain(t *trains.Train) {
 		moveDir = types.OppositeDir(car.Direction)
 	}
 
-	pos := world.Pos{X: car.X, Y: car.Y}
+	pos := types.Pos{X: car.X, Y: car.Y}
 	dir := car.Direction
 	nextPos := nextPos(pos, dir)
 	nextTile := e.w.TileAt(nextPos)
@@ -104,7 +104,7 @@ func (e *Engine) moveTrain(t *trains.Train) {
 		car = t.Cars[len(t.Cars)-1]
 		car.Direction = types.OppositeDir(car.Direction)
 	}
-	pos = world.Pos{X: car.X, Y: car.Y}
+	pos = types.Pos{X: car.X, Y: car.Y}
 	dir = car.Direction
 	track := e.w.Tracks[pos]
 	if track == nil {
@@ -143,16 +143,16 @@ func (e *Engine) moveCars(cars []*trains.TrainCar, moveDir types.Dir, reverse bo
 
 	car := cars[start]
 
-	newPos := nextPos(world.Pos{X: car.X, Y: car.Y}, moveDir)
+	newPos := nextPos(types.Pos{X: car.X, Y: car.Y}, moveDir)
 
-	prevPos := world.Pos{X: car.X, Y: car.Y}
+	prevPos := types.Pos{X: car.X, Y: car.Y}
 	prevDir := moveDir
 	car.X, car.Y = newPos.X, newPos.Y
-	e.w.SetOccupied(world.Pos{X: car.X, Y: car.Y})
+	e.w.SetOccupied(types.Pos{X: car.X, Y: car.Y})
 
 	for i := start + step; i != end; i += step {
 		car = cars[i]
-		thisPrevPos := world.Pos{X: car.X, Y: car.Y}
+		thisPrevPos := types.Pos{X: car.X, Y: car.Y}
 		thisPrevDir := car.Direction
 
 		car.X, car.Y, car.Direction = prevPos.X, prevPos.Y, prevDir
@@ -162,22 +162,22 @@ func (e *Engine) moveCars(cars []*trains.TrainCar, moveDir types.Dir, reverse bo
 	e.w.UnsetOccupied(prevPos)
 }
 
-func nextPos(pos world.Pos, dir types.Dir) world.Pos {
+func nextPos(pos types.Pos, dir types.Dir) types.Pos {
 	switch dir {
 	case types.DirNorth:
-		return world.Pos{X: pos.X, Y: pos.Y + 1}
+		return types.Pos{X: pos.X, Y: pos.Y + 1}
 	case types.DirSouth:
-		return world.Pos{X: pos.X, Y: pos.Y - 1}
+		return types.Pos{X: pos.X, Y: pos.Y - 1}
 	case types.DirEast:
-		return world.Pos{X: pos.X + 1, Y: pos.Y}
+		return types.Pos{X: pos.X + 1, Y: pos.Y}
 	case types.DirWest:
-		return world.Pos{X: pos.X - 1, Y: pos.Y}
+		return types.Pos{X: pos.X - 1, Y: pos.Y}
 	default:
 		return pos
 	}
 }
 
-func (e *Engine) getChunksInRegion(worldPos world.Pos) []*world.Chunk {
+func (e *Engine) getChunksInRegion(worldPos types.Pos) []*world.Chunk {
 	chunks := make([]*world.Chunk, 0)
 
 	centerChunk := world.TileToChunkPos(worldPos)
@@ -190,7 +190,7 @@ func (e *Engine) getChunksInRegion(worldPos world.Pos) []*world.Chunk {
 			if x < 0 || y < 0 {
 				continue
 			}
-			chunkPos := world.Pos{X: x, Y: y}
+			chunkPos := types.Pos{X: x, Y: y}
 
 			chunk := e.w.ChunkAt(chunkPos)
 			chunks = append(chunks, chunk)
@@ -221,12 +221,12 @@ func (e *Engine) handleLoginMessage(playerMsg *playerMessage) {
 	entry := logrus.WithField("player", playerMsg.playerID).WithField("message", playerMsg.message.loginMessage.Username)
 	entry.Debug("Processing login message")
 
-	camPos := world.Pos{X: e.w.Width / 2, Y: e.w.Height / 2}
+	camPos := types.Pos{X: e.w.Width / 2, Y: e.w.Height / 2}
 
 	initialLoadMessage := message.InitialLoadMessage{
 		Width:     e.w.Width,
 		Height:    e.w.Height,
-		CameraPos: world.Pos{X: camPos.X, Y: camPos.Y},
+		CameraPos: types.Pos{X: camPos.X, Y: camPos.Y},
 		Chunks:    e.getChunksInRegion(camPos),
 		Trains:    e.w.Trains,                                // TODO: get trains in region
 		Tracks:    message.TrackMapToTrackUpdate(e.w.Tracks), // TODO: get tracks in region

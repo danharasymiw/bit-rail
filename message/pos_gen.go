@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/world"
+	"github.com/danharasymiw/bit-rail/types"
 )
 
-func WritePos(w io.Writer, v *world.Pos) error {
+func WritePos(w io.Writer, v *types.Pos) error {
 	if v.X < 0 || v.X > 65535 {
 		return fmt.Errorf("X out of uint16 range: %d", v.X)
 	}
@@ -25,8 +25,8 @@ func WritePos(w io.Writer, v *world.Pos) error {
 	return nil
 }
 
-func ReadPos(r io.Reader) (*world.Pos, error) {
-	v := &world.Pos{}
+func ReadPos(r io.Reader) (*types.Pos, error) {
+	v := &types.Pos{}
 	var XVal uint16
 	if err := binaryRead(r, &XVal); err != nil {
 		return nil, fmt.Errorf("error reading X: %v", err)

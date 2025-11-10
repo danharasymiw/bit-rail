@@ -26,5 +26,5 @@ package message
 //go:generate go run ../cmd/generator/main.go -type=TrainCar -dir=../trains -output=train_car_gen.go
 
 // world package
-//go:generate go run ../cmd/generator/main.go -type=Pos -dir=../world -output=pos_gen.go
+//go:generate go run ../cmd/generator/main.go -type=Pos -dir=../types -output=pos_gen.go
 //go:generate go run ../cmd/generator/main.go -type=Chunk -dir=../world -output=chunk_gen.go

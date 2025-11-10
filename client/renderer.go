@@ -13,7 +13,7 @@ type ChatMessage struct {
 }
 
 type Renderer interface {
-	Render(camPos world.Pos, chatMessages []ChatMessage)
+	Render(camPos types.Pos, chatMessages []ChatMessage)
 	Screen() tcell.Screen
 }
 
@@ -33,7 +33,7 @@ func (r *SimpleRenderer) Screen() tcell.Screen {
 	return r.screen
 }
 
-func (r *SimpleRenderer) Render(camPos world.Pos, chatMessages []ChatMessage) {
+func (r *SimpleRenderer) Render(camPos types.Pos, chatMessages []ChatMessage) {
 	termWidth, termHeight := r.screen.Size()
 
 	infoPanelWidth := 35
@@ -49,7 +49,7 @@ func (r *SimpleRenderer) Render(camPos world.Pos, chatMessages []ChatMessage) {
 	r.screen.Show()
 }
 
-func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
+func (r *SimpleRenderer) renderRegion(pos types.Pos, width, height int) {
 	for relY := range height {
 		worldY := pos.Y + relY
 		if worldY >= len(r.w.Tiles) {
@@ -76,7 +76,7 @@ func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
 				r.screen.SetContent(relX, screenY, ' ', nil, tcell.StyleDefault)
 				continue
 			}
-			worldPos := world.Pos{X: worldX, Y: worldY}
+			worldPos := types.Pos{X: worldX, Y: worldY}
 			ch, style := r.getTileChar(worldPos, tile)
 			screenY := height - 1 - relY // Flip Y
 			r.screen.SetContent(relX, screenY, ch, nil, style)
@@ -84,7 +84,7 @@ func (r *SimpleRenderer) renderRegion(pos world.Pos, width, height int) {
 	}
 }
 
-func (r *SimpleRenderer) renderTrains(pos world.Pos, width, height int) {
+func (r *SimpleRenderer) renderTrains(pos types.Pos, width, height int) {
 	posX, posY := pos.X, pos.Y
 	for _, t := range r.w.Trains {
 		// Assuming train limits of 100 - check the first car to see if its
@@ -141,7 +141,7 @@ var (
 	}
 )
 
-func (r *SimpleRenderer) getTileChar(pos world.Pos, t *types.Tile) (rune, tcell.Style) {
+func (r *SimpleRenderer) getTileChar(pos types.Pos, t *types.Tile) (rune, tcell.Style) {
 	var ch rune
 	var fgCol tcell.Color
 	switch t.Type {

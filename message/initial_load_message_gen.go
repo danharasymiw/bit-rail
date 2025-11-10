@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/world"
+	"github.com/danharasymiw/bit-rail/trains"
 )
 
 func WriteInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
