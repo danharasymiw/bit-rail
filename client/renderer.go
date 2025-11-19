@@ -5,6 +5,7 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/gdamore/tcell"
+	"github.com/google/uuid"
 )
 
 type ChatMessage struct {
@@ -18,14 +19,16 @@ type Renderer interface {
 }
 
 type SimpleRenderer struct {
-	screen tcell.Screen
-	w      *world.World
+	screen    tcell.Screen
+	w         *world.World
+	debugMode bool
 }
 
-func NewSimpleRenderer(screen tcell.Screen, w *world.World) *SimpleRenderer {
+func NewSimpleRenderer(screen tcell.Screen, w *world.World, debugMode bool) *SimpleRenderer {
 	return &SimpleRenderer{
-		screen: screen,
-		w:      w,
+		screen:    screen,
+		w:         w,
+		debugMode: debugMode,
 	}
 }
 
@@ -187,6 +190,19 @@ func (r *SimpleRenderer) getTileChar(pos types.Pos, t *types.Tile) (rune, tcell.
 		default:
 			trackChar = ' '
 		}
+
+		// In debug mode, color tracks by their block ID
+		if r.debugMode {
+			if track.Block != nil && track.Block.ID != nil {
+				// Block has an ID - use color derived from UUID
+				blockColor := colorFromUUID(track.Block.ID)
+				return trackChar, tcell.StyleDefault.Foreground(blockColor)
+			} else if track.Block == nil {
+				// Track has no block assigned - draw as white
+				return trackChar, tcell.StyleDefault.Foreground(tcell.ColorWhite)
+			}
+		}
+		// Default: gray (or when not in debug mode)
 		return trackChar, tcell.StyleDefault.Foreground(tcell.ColorGray)
 	}
 	return ch, tcell.StyleDefault.Foreground(fgCol)
@@ -280,4 +296,21 @@ func (r *SimpleRenderer) renderChatPanel(x, y, width, height int, chatMessages [
 
 		lineY++
 	}
+}
+
+// colorFromUUID generates a consistent color from a UUID by using its bytes
+// to create RGB values. This ensures each block gets a unique, stable color.
+func colorFromUUID(id *uuid.UUID) tcell.Color {
+	// UUID is 16 bytes, we'll use them to generate RGB
+	// Use first 3 bytes for R, G, B, ensuring minimum brightness for visibility
+	bytes := id[:]
+	
+	// Extract RGB values, ensuring they're bright enough to be visible
+	// We'll map 0-255 to a range that's visible but not too dark
+	// Using a range of 80-255 to ensure good visibility
+	r := int(bytes[0])%176 + 80  // 0-255 -> 80-255
+	g := int(bytes[1])%176 + 80  // 0-255 -> 80-255
+	b := int(bytes[2])%176 + 80  // 0-255 -> 80-255
+	
+	return tcell.NewRGBColor(int32(r), int32(g), int32(b))
 }

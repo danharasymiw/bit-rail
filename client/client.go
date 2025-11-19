@@ -16,6 +16,7 @@ type Client struct {
 	chunksLoaded map[types.Pos]struct{}
 	chatMessages []ChatMessage
 	username     string
+	debugMode    bool
 
 	running bool
 	nm      *clientNetworkManager
@@ -27,7 +28,7 @@ type Client struct {
 	quitCh chan struct{}
 }
 
-func New() (*Client, chan struct{}) {
+func New(debugMode bool) (*Client, chan struct{}) {
 	quitCh := make(chan struct{})
 	usr, err := user.Current()
 	if err != nil {
@@ -39,6 +40,7 @@ func New() (*Client, chan struct{}) {
 		username:     usr.Username,
 		camSpeed:     2,
 		chatMessages: make([]ChatMessage, 0),
+		debugMode:    debugMode,
 	}
 
 	logrus.AddHook(&ChatLogHook{client: c})
@@ -73,7 +75,7 @@ func (c *Client) Run() error {
 		return err
 	}
 
-	c.r = NewSimpleRenderer(screen, c.w)
+	c.r = NewSimpleRenderer(screen, c.w, c.debugMode)
 
 	events := make(chan tcell.Event, 32)
 
