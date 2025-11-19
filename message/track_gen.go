@@ -13,9 +13,6 @@ func WriteTrack(w io.Writer, v *types.Track) error {
 	if err := WriteDir(w, &v.Direction); err != nil {
 		return fmt.Errorf("error writing Direction: %v", err)
 	}
-	if err := binaryWrite(w, v.HasSignal); err != nil {
-		return fmt.Errorf("error writing HasSignal: %v", err)
-	}
 	if err := WriteDir(w, &v.SignalDir); err != nil {
 		return fmt.Errorf("error writing SignalDir: %v", err)
 	}
@@ -37,9 +34,6 @@ func ReadTrack(r io.Reader) (*types.Track, error) {
 		return nil, fmt.Errorf("error reading Direction: %v", err)
 	}
 	v.Direction = *DirectionVal
-	if err := binaryRead(r, &v.HasSignal); err != nil {
-		return nil, fmt.Errorf("error reading HasSignal: %v", err)
-	}
 	SignalDirVal, err := ReadDir(r)
 	if err != nil {
 		return nil, fmt.Errorf("error reading SignalDir: %v", err)

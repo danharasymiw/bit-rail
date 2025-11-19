@@ -207,9 +207,9 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 				builder.WriteString("\t}\n")
 			} else {
 				// Non primitive type - call its serializer
-				serializerName := getSerializerName(fieldType)
-				// If field is a pointer, make it optional
-				if strings.HasPrefix(fieldType, "*") {
+				// Check if this is a pointer to uuid.UUID (special case)
+				if strings.HasPrefix(fieldType, "*") && strings.TrimPrefix(fieldType, "*") == "uuid.UUID" {
+					// Pointer to UUID - use writeUUID function
 					fieldRef := fmt.Sprintf("v.%s", fieldName)
 					// Write boolean indicating if pointer is not nil
 					builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, v.%s != nil); err != nil {\n", fieldName))
@@ -217,16 +217,32 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 					builder.WriteString("\t}\n")
 					// Only write if not nil
 					builder.WriteString(fmt.Sprintf("\tif v.%s != nil {\n", fieldName))
-					builder.WriteString(fmt.Sprintf("\tif err := Write%s(w, %s); err != nil {\n", serializerName, fieldRef))
+					builder.WriteString(fmt.Sprintf("\t\tif err := writeUUID(w, %s); err != nil {\n", fieldRef))
 					builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
 					builder.WriteString("\t\t}\n")
 					builder.WriteString("\t}\n")
 				} else {
-					// Non-pointer field - always write
-					fieldRef := fmt.Sprintf("&v.%s", fieldName)
-					builder.WriteString(fmt.Sprintf("\tif err := Write%s(w, %s); err != nil {\n", serializerName, fieldRef))
-					builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
-					builder.WriteString("\t}\n")
+					serializerName := getSerializerName(fieldType)
+					// If field is a pointer, make it optional
+					if strings.HasPrefix(fieldType, "*") {
+						fieldRef := fmt.Sprintf("v.%s", fieldName)
+						// Write boolean indicating if pointer is not nil
+						builder.WriteString(fmt.Sprintf("\tif err := binaryWrite(w, v.%s != nil); err != nil {\n", fieldName))
+						builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s present flag: %%v\", err)\n", fieldName))
+						builder.WriteString("\t}\n")
+						// Only write if not nil
+						builder.WriteString(fmt.Sprintf("\tif v.%s != nil {\n", fieldName))
+						builder.WriteString(fmt.Sprintf("\t\tif err := Write%s(w, %s); err != nil {\n", serializerName, fieldRef))
+						builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
+						builder.WriteString("\t\t}\n")
+						builder.WriteString("\t}\n")
+					} else {
+						// Non-pointer field - always write
+						fieldRef := fmt.Sprintf("&v.%s", fieldName)
+						builder.WriteString(fmt.Sprintf("\tif err := Write%s(w, %s); err != nil {\n", serializerName, fieldRef))
+						builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"error writing %s: %%v\", err)\n", fieldName))
+						builder.WriteString("\t}\n")
+					}
 				}
 			}
 		}
@@ -326,9 +342,9 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 					builder.WriteString("\t}\n")
 				}
 			} else {
-				serializerName := getSerializerName(fieldType)
-				// If field is a pointer, make it optional
-				if strings.HasPrefix(fieldType, "*") {
+				// Check if this is a pointer to uuid.UUID (special case)
+				if strings.HasPrefix(fieldType, "*") && strings.TrimPrefix(fieldType, "*") == "uuid.UUID" {
+					// Pointer to UUID - use readUUID function
 					// Read boolean indicating if pointer is present
 					presentFlag := fmt.Sprintf("%sPresent", fieldName)
 					builder.WriteString(fmt.Sprintf("\tvar %s bool\n", presentFlag))
@@ -337,19 +353,38 @@ func generateStructSerializer(typeName, pkgName string, structType *ast.StructTy
 					builder.WriteString("\t}\n")
 					// Only read if present
 					builder.WriteString(fmt.Sprintf("\tif %s {\n", presentFlag))
-					builder.WriteString(fmt.Sprintf("\t\t%sVal, err := Read%s(r)\n", fieldName, serializerName))
+					builder.WriteString(fmt.Sprintf("\t\t%sVal, err := readUUID(r)\n", fieldName))
 					builder.WriteString("\t\tif err != nil {\n")
 					builder.WriteString(fmt.Sprintf("\t\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
 					builder.WriteString("\t\t}\n")
-					builder.WriteString(fmt.Sprintf("\t\tv.%s = %sVal\n", fieldName, fieldName))
+					builder.WriteString(fmt.Sprintf("\t\tv.%s = &%sVal\n", fieldName, fieldName))
 					builder.WriteString("\t}\n")
 				} else {
-					// Non-pointer field - always read
-					builder.WriteString(fmt.Sprintf("\t%sVal, err := Read%s(r)\n", fieldName, serializerName))
-					builder.WriteString("\tif err != nil {\n")
-					builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
-					builder.WriteString("\t}\n")
-					builder.WriteString(fmt.Sprintf("\tv.%s = *%sVal\n", fieldName, fieldName))
+					serializerName := getSerializerName(fieldType)
+					// If field is a pointer, make it optional
+					if strings.HasPrefix(fieldType, "*") {
+						// Read boolean indicating if pointer is present
+						presentFlag := fmt.Sprintf("%sPresent", fieldName)
+						builder.WriteString(fmt.Sprintf("\tvar %s bool\n", presentFlag))
+						builder.WriteString(fmt.Sprintf("\tif err := binaryRead(r, &%s); err != nil {\n", presentFlag))
+						builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s present flag: %%v\", err)\n", fieldName))
+						builder.WriteString("\t}\n")
+						// Only read if present
+						builder.WriteString(fmt.Sprintf("\tif %s {\n", presentFlag))
+						builder.WriteString(fmt.Sprintf("\t\t%sVal, err := Read%s(r)\n", fieldName, serializerName))
+						builder.WriteString("\t\tif err != nil {\n")
+						builder.WriteString(fmt.Sprintf("\t\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+						builder.WriteString("\t\t}\n")
+						builder.WriteString(fmt.Sprintf("\t\tv.%s = %sVal\n", fieldName, fieldName))
+						builder.WriteString("\t}\n")
+					} else {
+						// Non-pointer field - always read
+						builder.WriteString(fmt.Sprintf("\t%sVal, err := Read%s(r)\n", fieldName, serializerName))
+						builder.WriteString("\tif err != nil {\n")
+						builder.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"error reading %s: %%v\", err)\n", fieldName))
+						builder.WriteString("\t}\n")
+						builder.WriteString(fmt.Sprintf("\tv.%s = *%sVal\n", fieldName, fieldName))
+					}
 				}
 			}
 		}

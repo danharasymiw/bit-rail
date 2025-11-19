@@ -10,26 +10,48 @@ import (
 )
 
 func WriteBlock(w io.Writer, v *types.Block) error {
-	if err := writeUUID(w, &v.ID); err != nil {
-		return fmt.Errorf("error writing ID: %v", err)
+	if err := binaryWrite(w, v.ID != nil); err != nil {
+		return fmt.Errorf("error writing ID present flag: %v", err)
 	}
-	if err := writeUUID(w, &v.OccupiedBy); err != nil {
-		return fmt.Errorf("error writing OccupiedBy: %v", err)
+	if v.ID != nil {
+		if err := writeUUID(w, v.ID); err != nil {
+			return fmt.Errorf("error writing ID: %v", err)
+		}
+	}
+	if err := binaryWrite(w, v.OccupiedBy != nil); err != nil {
+		return fmt.Errorf("error writing OccupiedBy present flag: %v", err)
+	}
+	if v.OccupiedBy != nil {
+		if err := writeUUID(w, v.OccupiedBy); err != nil {
+			return fmt.Errorf("error writing OccupiedBy: %v", err)
+		}
 	}
 	return nil
 }
 
 func ReadBlock(r io.Reader) (*types.Block, error) {
 	v := &types.Block{}
-	ID, err := readUUID(r)
-	if err != nil {
-		return nil, fmt.Errorf("error reading ID: %v", err)
+	var IDPresent bool
+	if err := binaryRead(r, &IDPresent); err != nil {
+		return nil, fmt.Errorf("error reading ID present flag: %v", err)
 	}
-	v.ID = ID
-	OccupiedBy, err := readUUID(r)
-	if err != nil {
-		return nil, fmt.Errorf("error reading OccupiedBy: %v", err)
+	if IDPresent {
+		IDVal, err := readUUID(r)
+		if err != nil {
+			return nil, fmt.Errorf("error reading ID: %v", err)
+		}
+		v.ID = &IDVal
 	}
-	v.OccupiedBy = OccupiedBy
+	var OccupiedByPresent bool
+	if err := binaryRead(r, &OccupiedByPresent); err != nil {
+		return nil, fmt.Errorf("error reading OccupiedBy present flag: %v", err)
+	}
+	if OccupiedByPresent {
+		OccupiedByVal, err := readUUID(r)
+		if err != nil {
+			return nil, fmt.Errorf("error reading OccupiedBy: %v", err)
+		}
+		v.OccupiedBy = &OccupiedByVal
+	}
 	return v, nil
 }

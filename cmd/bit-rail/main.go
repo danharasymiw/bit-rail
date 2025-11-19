@@ -9,6 +9,7 @@ import (
 
 	"github.com/danharasymiw/bit-rail/client"
 	"github.com/danharasymiw/bit-rail/engine"
+	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world/test_worlds"
 	"github.com/sirupsen/logrus"
 )
@@ -63,7 +64,7 @@ func main() {
 		logrus.Info("Starting server and client in local mode")
 		eng := engine.New(w, tickDur)
 
-		c, quitCh := client.New()
+		c, quitCh := client.New(*debugMode)
 		readyCh := make(chan struct{})
 
 		go eng.Run(quitCh, readyCh)
@@ -79,9 +80,12 @@ func main() {
 		// Default: Run as client only
 		logFile = setupLogging("client.log", *debugMode)
 		logrus.Info("Starting client")
-		c, _ := client.New()
+		c, _ := client.New(*debugMode)
 		if err := c.Run(); err != nil {
 			log.Fatal(err)
 		}
 	}
+}
+
+func addEngineTracks(eng *engine.Engine, tracks []*types.Track) {
 }
