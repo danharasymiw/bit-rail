@@ -14,7 +14,8 @@ type Block struct {
 }
 
 func NewBlock() *Block {
+	id := uuid.New()
 	return &Block{
-		ID: uuid.New(),
+		ID: id,
 	}
 }

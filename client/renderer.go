@@ -1,11 +1,13 @@
 package client
 
 import (
+	"github.com/gdamore/tcell"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
-	"github.com/gdamore/tcell"
-	"github.com/google/uuid"
 )
 
 type ChatMessage struct {
@@ -162,8 +164,38 @@ func (r *SimpleRenderer) getTileChar(pos types.Pos, t *types.Tile) (rune, tcell.
 		fgCol = mountainColors[(pos.X^pos.Y)%len(mountainColors)]
 
 	case types.TileTrack:
-		var trackChar rune
 		track := r.w.Tracks[pos]
+
+		// If track has signals, render signal symbols instead of track
+		if track.HasSignal() {
+			// Render signal for the first direction found (prioritize north, south, east, west)
+			var signalChar rune
+			var signalColor tcell.Color
+
+			if track.SignalDir&types.DirNorth != 0 {
+				signalChar = '^'
+			} else if track.SignalDir&types.DirSouth != 0 {
+				signalChar = 'v'
+			} else if track.SignalDir&types.DirEast != 0 {
+				signalChar = '>'
+			} else if track.SignalDir&types.DirWest != 0 {
+				signalChar = '<'
+			}
+
+			// Determine signal color based on whether it's clear
+			// TODO: This doesn't work because the engine doesn't tell the client that the blocks are occupied or not
+			if track.Block.OccupiedBy == uuid.Nil {
+				signalColor = tcell.ColorGreen
+			} else {
+				logrus.Debug("setting color to red")
+				signalColor = tcell.ColorRed
+			}
+
+			return signalChar, tcell.StyleDefault.Foreground(signalColor)
+		}
+
+		// No signal, render track character
+		var trackChar rune
 		switch track.Direction {
 		case types.DirNorth | types.DirSouth:
 			trackChar = '║' // vertical
@@ -193,9 +225,9 @@ func (r *SimpleRenderer) getTileChar(pos types.Pos, t *types.Tile) (rune, tcell.
 
 		// In debug mode, color tracks by their block ID
 		if r.debugMode {
-			if track.Block != nil && track.Block.ID != nil {
+			if track.Block != nil && track.Block.ID != uuid.Nil {
 				// Block has an ID - use color derived from UUID
-				blockColor := colorFromUUID(track.Block.ID)
+				blockColor := colorFromUUID(&track.Block.ID)
 				return trackChar, tcell.StyleDefault.Foreground(blockColor)
 			} else if track.Block == nil {
 				// Track has no block assigned - draw as white
@@ -304,13 +336,13 @@ func colorFromUUID(id *uuid.UUID) tcell.Color {
 	// UUID is 16 bytes, we'll use them to generate RGB
 	// Use first 3 bytes for R, G, B, ensuring minimum brightness for visibility
 	bytes := id[:]
-	
+
 	// Extract RGB values, ensuring they're bright enough to be visible
 	// We'll map 0-255 to a range that's visible but not too dark
 	// Using a range of 80-255 to ensure good visibility
-	r := int(bytes[0])%176 + 80  // 0-255 -> 80-255
-	g := int(bytes[1])%176 + 80  // 0-255 -> 80-255
-	b := int(bytes[2])%176 + 80  // 0-255 -> 80-255
-	
+	r := int(bytes[0])%176 + 80 // 0-255 -> 80-255
+	g := int(bytes[1])%176 + 80 // 0-255 -> 80-255
+	b := int(bytes[2])%176 + 80 // 0-255 -> 80-255
+
 	return tcell.NewRGBColor(int32(r), int32(g), int32(b))
 }

@@ -14,5 +14,21 @@ generate: clean
 	@go generate ./...
 	@echo "Done!"
 
-run:
+local:
+	go run cmd/bit-rail/main.go -local
+
+local-debug:
+	go run cmd/bit-rail/main.go -local -debug
+
+server:
+	 go run cmd/bit-rail/main.go -server
+
+server-debug:
+	go run cmd/bit-rail/main.go -server -debug
+
+client:
 	go run cmd/bit-rail/main.go
+
+client-debug:
+	go run cmd/bit-rail/main.go -debug
+

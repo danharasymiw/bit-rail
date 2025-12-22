@@ -1,8 +1,10 @@
 package trains
 
 import (
-	"github.com/danharasymiw/bit-rail/types"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+
+	"github.com/danharasymiw/bit-rail/types"
 )
 
 type Train struct {
@@ -30,83 +32,96 @@ type TrainCar struct {
 }
 
 func (t *Train) Tick(w trainWorldView) {
-	// TODO investigate if this function makes more sense to turn/figure out direction then move
-	// Currently we move, and then figure out out next direction
 	if !t.IsMoving {
 		return
 	}
 
-	car := t.Cars[0]
-	moveDir := car.Direction
-	if t.IsReversing {
-		car = t.Cars[len(t.Cars)-1]
-		moveDir = types.OppositeDir(car.Direction)
+	frontCar := firstCar(t)
+	moveDir := frontCar.Direction
+
+	currPos := types.Pos{X: frontCar.X, Y: frontCar.Y}
+	// TODO: maybe set direction before moving
+	// Awkward that our current track may not work with our direction.
+
+	nextPos := types.NextPos(currPos, moveDir)
+	nextTrack := w.TrackAt(nextPos)
+	if nextTrack == nil {
+		logrus.Debug("Next track is nil!")
+		return // nowhere to go
 	}
 
-	pos := types.Pos{X: car.X, Y: car.Y}
-	dir := car.Direction
-	nextPos := nextPos(pos, dir)
-	nextTile := w.TileAt(nextPos)
-	if nextTile.Type != types.TileTrack {
+	// Make sure next track connects back (TODO otherwise blow up or whatever trains do)
+	if types.OppositeDir(moveDir)&nextTrack.Direction == 0 {
+		logrus.Debug("BOOM - train can't move tracks don't align")
+		logrus.Debug(nextPos)
+		t.IsMoving = false
 		return
 	}
 
-	if w.OccupiedAt(nextPos) {
-		return
-	}
-
-	t.moveCars(moveDir, w)
-
-	car = t.Cars[0]
-	if t.IsReversing {
-		car = t.Cars[len(t.Cars)-1]
-		car.Direction = types.OppositeDir(car.Direction)
-	}
-	pos = types.Pos{X: car.X, Y: car.Y}
-	dir = car.Direction
-	track := w.TrackAt(pos)
-	if track == nil {
-		return
-	}
-
-	incFrom := types.OppositeDir(dir)
-	if track.Direction&incFrom == 0 {
-		return
-	}
-
-	outgoing := track.Direction & ^incFrom
-
-	if outgoing != 0 && (outgoing&(outgoing-1)) == 0 {
-		car.Direction = outgoing & -outgoing
-		return
-	}
-
-	if outgoing&dir != 0 {
-		return
-	}
-
-	for d := types.DirNorth; d <= types.DirWest; d <<= 1 {
-		if outgoing&types.Dir(d) != 0 {
-			car.Direction = types.Dir(d)
+	if nextTrack.HasSignal() && nextTrack.IsSignalDir(frontCar.Direction) {
+		if !nextTrack.IsSignalClear(t.ID) {
 			return
+		}
+
+		nextTrack.SetSignal(t.ID)
+	}
+
+	// Move (remember tail car so we can clear signals after tail passes)
+	last := lastCar(t)
+	lastPrevPos := types.Pos{X: last.X, Y: last.Y}
+
+	t.moveCars(moveDir)
+
+	trackLeft := w.TrackAt(lastPrevPos)
+	if trackLeft.HasSignal() && trackLeft.IsSignalDir(types.OppositeDir(last.Direction)) {
+		trackLeft.ClearSignal()
+	}
+
+	// Determine next direction; nextTrack is now our current tile.
+	// If we can't continue forward, pick another valid direction that's not backtracking.
+	if nextTrack.Direction&moveDir == 0 {
+		for dir := types.Dir(types.DirNorth); dir <= types.DirWest; dir <<= 1 {
+			if dir&nextTrack.Direction != 0 && dir != types.OppositeDir(moveDir) {
+				frontCar.Direction = dir
+				break
+			}
 		}
 	}
 }
 
-func (t *Train) moveCars(moveDir types.Dir, w trainWorldView) {
+func firstCar(t *Train) *TrainCar {
+	if !t.IsReversing {
+		return t.Cars[0]
+	}
+	return t.Cars[len(t.Cars)-1]
+}
+
+func lastCar(t *Train) *TrainCar {
+	if t.IsReversing {
+		return t.Cars[0]
+	}
+	return t.Cars[len(t.Cars)-1]
+}
+
+func reverse(t *Train) {
+	t.IsReversing = !t.IsReversing
+	for _, c := range t.Cars {
+		c.Direction = types.OppositeDir(c.Direction)
+	}
+}
+
+func (t *Train) moveCars(moveDir types.Dir) {
 	start, end, step := 0, len(t.Cars), 1
 	if t.IsReversing {
 		start, end, step = len(t.Cars)-1, -1, -1
 	}
 
 	car := t.Cars[start]
-
-	newPos := nextPos(types.Pos{X: car.X, Y: car.Y}, moveDir)
-
 	prevPos := types.Pos{X: car.X, Y: car.Y}
 	prevDir := moveDir
+	newPos := types.NextPos(prevPos, moveDir)
+
 	car.X, car.Y = newPos.X, newPos.Y
-	w.SetOccupied(types.Pos{X: car.X, Y: car.Y})
 
 	for i := start + step; i != end; i += step {
 		car = t.Cars[i]
@@ -116,22 +131,5 @@ func (t *Train) moveCars(moveDir types.Dir, w trainWorldView) {
 		car.X, car.Y, car.Direction = prevPos.X, prevPos.Y, prevDir
 
 		prevPos, prevDir = thisPrevPos, thisPrevDir
-	}
-	w.UnsetOccupied(prevPos)
-}
-
-// TODO: This is duplicated in block_manager.go
-func nextPos(pos types.Pos, dir types.Dir) types.Pos {
-	switch dir {
-	case types.DirNorth:
-		return types.Pos{X: pos.X, Y: pos.Y + 1}
-	case types.DirSouth:
-		return types.Pos{X: pos.X, Y: pos.Y - 1}
-	case types.DirEast:
-		return types.Pos{X: pos.X + 1, Y: pos.Y}
-	case types.DirWest:
-		return types.Pos{X: pos.X - 1, Y: pos.Y}
-	default:
-		return pos
 	}
 }

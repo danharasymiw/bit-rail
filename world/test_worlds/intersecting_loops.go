@@ -72,5 +72,16 @@ func IntersectingLoopsTestWorld() *world.World {
 		Cars:     trainCars2,
 	})
 
+	// Signals
+	w.AddTrack(types.Pos{X: 325, Y: 267}, &types.Track{Direction: types.DirNorthSouth, SignalDir: types.DirNorth})
+	w.AddTrack(types.Pos{X: 325, Y: 272}, &types.Track{Direction: types.DirNorthSouth, SignalDir: types.DirSouth})
+	w.AddTrack(types.Pos{X: 328, Y: 270}, &types.Track{Direction: types.DirEastWest, SignalDir: types.DirWest})
+	w.AddTrack(types.Pos{X: 323, Y: 270}, &types.Track{Direction: types.DirEastWest, SignalDir: types.DirEast})
+
+	w.AddTrack(types.Pos{X: 350, Y: 272}, &types.Track{Direction: types.DirNorthSouth, SignalDir: types.DirNorth})
+	w.AddTrack(types.Pos{X: 350, Y: 278}, &types.Track{Direction: types.DirNorthSouth, SignalDir: types.DirSouth})
+	w.AddTrack(types.Pos{X: 347, Y: 275}, &types.Track{Direction: types.DirEastWest, SignalDir: types.DirEast})
+	w.AddTrack(types.Pos{X: 353, Y: 275}, &types.Track{Direction: types.DirEastWest, SignalDir: types.DirWest})
+
 	return w
 }

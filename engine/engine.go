@@ -17,6 +17,7 @@ type Engine struct {
 	tickDur time.Duration
 	running bool
 	nm      *networkManager
+	bm      *blockManager
 
 	// TODO: do we really want this to be a message type?
 	tilesUpdated  []*message.TileUpdate
@@ -27,12 +28,19 @@ func New(w *world.World, tickDur time.Duration) *Engine {
 	eng := &Engine{
 		w:       w,
 		tickDur: tickDur,
+		nm:      newNetworkManager(),
+		bm:      newBlockManager(w),
 	}
-	eng.nm = newNetworkManager()
+
 	return eng
 }
 
 func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
+	// Calculate initial blocks
+	// All tracks should already belong to a block, but make sure they do on startup
+	// Also allows us to test block manager in test worlds
+	e.bm.RebuildAll()
+
 	go e.nm.startServer(readyCh)
 
 	ticker := time.NewTicker(e.tickDur)
@@ -55,6 +63,8 @@ func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
 }
 
 func (e *Engine) tick() {
+	e.bm.ProcessDirty()
+
 	for _, t := range e.w.Trains {
 		t.Tick(e.w)
 	}
@@ -160,4 +170,9 @@ func (e *Engine) BroadcastChatMessage(author, msg string) {
 			Message: msg,
 		},
 	}
+}
+
+func (e *Engine) AddTrack(p types.Pos, t *types.Track) {
+	e.w.AddTrack(p, t)
+	e.bm.MarkDirty(p)
 }

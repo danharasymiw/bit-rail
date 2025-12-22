@@ -57,3 +57,18 @@ func OppositeDir(d Dir) Dir {
 		return DirNone
 	}
 }
+
+func NextPos(pos Pos, dir Dir) Pos {
+	switch dir {
+	case DirNorth:
+		return Pos{X: pos.X, Y: pos.Y + 1}
+	case DirSouth:
+		return Pos{X: pos.X, Y: pos.Y - 1}
+	case DirEast:
+		return Pos{X: pos.X + 1, Y: pos.Y}
+	case DirWest:
+		return Pos{X: pos.X - 1, Y: pos.Y}
+	default:
+		return pos
+	}
+}

@@ -9,7 +9,6 @@ import (
 
 	"github.com/danharasymiw/bit-rail/client"
 	"github.com/danharasymiw/bit-rail/engine"
-	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world/test_worlds"
 	"github.com/sirupsen/logrus"
 )
@@ -85,7 +84,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-}
-
-func addEngineTracks(eng *engine.Engine, tracks []*types.Track) {
 }
