@@ -8,6 +8,7 @@ import (
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/gdamore/tcell"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,6 +18,7 @@ type Client struct {
 	chatMessages []ChatMessage
 	username     string
 	debugMode    bool
+	serverAddr   string
 
 	running bool
 	nm      *clientNetworkManager
@@ -28,7 +30,7 @@ type Client struct {
 	quitCh chan struct{}
 }
 
-func New(debugMode bool) (*Client, chan struct{}) {
+func New(debugMode bool, serverAddr string) (*Client, chan struct{}) {
 	quitCh := make(chan struct{})
 	usr, err := user.Current()
 	if err != nil {
@@ -41,6 +43,7 @@ func New(debugMode bool) (*Client, chan struct{}) {
 		camSpeed:     2,
 		chatMessages: make([]ChatMessage, 0),
 		debugMode:    debugMode,
+		serverAddr:   serverAddr,
 	}
 
 	logrus.AddHook(&ChatLogHook{client: c})
@@ -58,7 +61,7 @@ func (c *Client) Run() error {
 	}
 	defer screen.Fini()
 
-	c.nm, err = newClientNetworkManager()
+	c.nm, err = newClientNetworkManager(c.serverAddr)
 	if err != nil {
 		return err
 	}
@@ -161,6 +164,7 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 	for _, trackUpdate := range msg.Tracks {
 		c.w.AddTrack(trackUpdate.Pos, &trackUpdate.Track)
 	}
+	deduplicateBlocks(c.w.Tracks)
 
 	// Ensure we have full chunk buffer (in case initial load didn't include all)
 	c.loadChunksAroundCamera()
@@ -190,6 +194,9 @@ func (c *Client) handleIncomingMessage(incoming *incomingMessage) {
 		}
 		for _, tu := range incoming.worldUpdateMessage.TracksUpdated {
 			c.w.Tracks[tu.Pos] = &tu.Track
+		}
+		if len(incoming.worldUpdateMessage.TracksUpdated) > 0 {
+			deduplicateBlocks(c.w.Tracks)
 		}
 		c.w.Trains = incoming.worldUpdateMessage.Trains
 	}
@@ -235,24 +242,36 @@ func (c *Client) loadChunksAroundCamera() {
 
 	centerChunk := world.TileToChunkPos(c.camPos)
 
-	minChunkX, minChunkY := 0, 0
-	if centerChunk.X > chunkRadius {
-		minChunkX = centerChunk.X - chunkRadius
-	}
-	if centerChunk.Y > chunkRadius {
-		minChunkX = centerChunk.Y - chunkRadius
-	}
 	maxChunkX := c.w.Width / world.ChunkSize
 	maxChunkY := c.w.Height / world.ChunkSize
 
 	chunkPositions := make([]types.Pos, 0, (2*chunkRadius+1)*(2*chunkRadius+1))
-	for dx := minChunkX; dx <= maxChunkX; dx++ {
-		for dy := minChunkY; dy <= maxChunkY; dy++ {
-			chunkPositions = append(chunkPositions, types.Pos{X: centerChunk.X + dx, Y: centerChunk.Y + dy})
+	for dx := -chunkRadius; dx <= chunkRadius; dx++ {
+		for dy := -chunkRadius; dy <= chunkRadius; dy++ {
+			x := centerChunk.X + dx
+			y := centerChunk.Y + dy
+			if x < 0 || y < 0 || x > maxChunkX || y > maxChunkY {
+				continue
+			}
+			chunkPositions = append(chunkPositions, types.Pos{X: x, Y: y})
 		}
 	}
 
 	c.getChunks(chunkPositions)
+}
+
+func deduplicateBlocks(tracks map[types.Pos]*types.Track) {
+	blocksByID := make(map[uuid.UUID]*types.Block)
+	for _, track := range tracks {
+		if track.Block == nil {
+			continue
+		}
+		if existing, ok := blocksByID[track.Block.ID]; ok {
+			track.Block = existing
+		} else {
+			blocksByID[track.Block.ID] = track.Block
+		}
+	}
 }
 
 func (c *Client) getChunks(positions []types.Pos) {

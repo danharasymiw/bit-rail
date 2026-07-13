@@ -24,11 +24,11 @@ type Engine struct {
 	tracksUpdated []*message.TrackUpdate
 }
 
-func New(w *world.World, tickDur time.Duration) *Engine {
+func New(w *world.World, tickDur time.Duration, addr string) *Engine {
 	eng := &Engine{
 		w:       w,
 		tickDur: tickDur,
-		nm:      newNetworkManager(),
+		nm:      newNetworkManager(addr),
 		bm:      newBlockManager(w),
 	}
 
@@ -78,6 +78,7 @@ func (e *Engine) tick() {
 	}
 
 	e.tilesUpdated = make([]*message.TileUpdate, 0)
+	e.tracksUpdated = make([]*message.TrackUpdate, 0)
 }
 
 func (e *Engine) getChunksInRegion(worldPos types.Pos) []*world.Chunk {
@@ -175,4 +176,5 @@ func (e *Engine) BroadcastChatMessage(author, msg string) {
 func (e *Engine) AddTrack(p types.Pos, t *types.Track) {
 	e.w.AddTrack(p, t)
 	e.bm.MarkDirty(p)
+	e.tracksUpdated = append(e.tracksUpdated, &message.TrackUpdate{Pos: p, Track: *t})
 }

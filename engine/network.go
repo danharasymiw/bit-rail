@@ -38,6 +38,7 @@ type playerConnection struct {
 }
 
 type networkManager struct {
+	addr        string
 	players     map[string]*playerConnection
 	playersMu   sync.RWMutex
 	upgrader    websocket.Upgrader
@@ -45,8 +46,9 @@ type networkManager struct {
 	broadcastCh chan *outgoingMessage // Shared channel for ALL players
 }
 
-func newNetworkManager() *networkManager {
+func newNetworkManager(addr string) *networkManager {
 	return &networkManager{
+		addr:        addr,
 		players:     make(map[string]*playerConnection),
 		incomingCh:  make(chan *playerMessage, 100),
 		broadcastCh: make(chan *outgoingMessage, 100),
@@ -59,17 +61,19 @@ func newNetworkManager() *networkManager {
 }
 
 func (nm *networkManager) startServer(readyCh chan<- struct{}) {
-	http.HandleFunc("/ws", nm.wsHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", nm.wsHandler)
 
-	listener, err := net.Listen("tcp", ":2977")
+	listener, err := net.Listen("tcp", nm.addr)
 	if err != nil {
 		panic(err)
 	}
-	logrus.Info("Server ready on :2977")
+	logrus.Infof("Server ready on %s", nm.addr)
 	close(readyCh)
 
 	go nm.broadcastLoop()
-	http.Serve(listener, nil)
+	server := &http.Server{Handler: mux}
+	server.Serve(listener)
 }
 
 func (nm *networkManager) wsHandler(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +154,7 @@ func (nm *networkManager) handleRead(playerConn *playerConnection) {
 
 		switch msgType {
 		case message.MessageTypeChat:
-			println("received chat message")
+			logrus.Debug("received chat message")
 			incoming.chatMessage, err = message.ReadChatMessage(reader)
 			if err != nil {
 				logEntry.Errorf("Error reading chat message: %v", err)
@@ -224,7 +228,11 @@ func (nm *networkManager) broadcastLoop() {
 	for msg := range nm.broadcastCh {
 		nm.playersMu.RLock()
 		for _, player := range nm.players {
-			player.outgoingCh <- msg
+			select {
+			case player.outgoingCh <- msg:
+			default:
+				logrus.Warnf("Outgoing channel full for player %s, dropping message", player.playerID)
+			}
 		}
 		nm.playersMu.RUnlock()
 	}

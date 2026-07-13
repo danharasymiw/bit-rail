@@ -70,7 +70,7 @@ func (t *Train) Tick(w trainWorldView) {
 	last := lastCar(t)
 	lastPrevPos := types.Pos{X: last.X, Y: last.Y}
 
-	t.moveCars(moveDir)
+	t.moveCars(w, moveDir)
 
 	trackLeft := w.TrackAt(lastPrevPos)
 	if trackLeft.HasSignal() && trackLeft.IsSignalDir(types.OppositeDir(last.Direction)) {
@@ -110,7 +110,12 @@ func reverse(t *Train) {
 	}
 }
 
-func (t *Train) moveCars(moveDir types.Dir) {
+func (t *Train) moveCars(w trainWorldView, moveDir types.Dir) {
+	oldPositions := make([]types.Pos, len(t.Cars))
+	for i, car := range t.Cars {
+		oldPositions[i] = types.Pos{X: car.X, Y: car.Y}
+	}
+
 	start, end, step := 0, len(t.Cars), 1
 	if t.IsReversing {
 		start, end, step = len(t.Cars)-1, -1, -1
@@ -131,5 +136,12 @@ func (t *Train) moveCars(moveDir types.Dir) {
 		car.X, car.Y, car.Direction = prevPos.X, prevPos.Y, prevDir
 
 		prevPos, prevDir = thisPrevPos, thisPrevDir
+	}
+
+	for _, pos := range oldPositions {
+		w.UnsetOccupied(pos)
+	}
+	for _, car := range t.Cars {
+		w.SetOccupied(types.Pos{X: car.X, Y: car.Y})
 	}
 }

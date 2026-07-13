@@ -27,8 +27,8 @@ type clientNetworkManager struct {
 	outgoingCh chan *outgoingMessage
 }
 
-func newClientNetworkManager() (*clientNetworkManager, error) {
-	ws, _, err := websocket.DefaultDialer.Dial("ws://localhost:2977/ws", nil)
+func newClientNetworkManager(addr string) (*clientNetworkManager, error) {
+	ws, _, err := websocket.DefaultDialer.Dial(addr, nil)
 	if err != nil {
 		return nil, err
 	}
