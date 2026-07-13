@@ -46,6 +46,7 @@ func (r *SimpleRenderer) Render(camPos types.Pos, chatMessages []ChatMessage) {
 	worldHeight := termHeight - chatPanelHeight
 
 	r.renderRegion(camPos, worldWidth, worldHeight)
+	r.renderStations(camPos, worldWidth, worldHeight)
 	r.renderTrains(camPos, worldWidth, worldHeight)
 	r.renderInfoPanel(worldWidth, 0, infoPanelWidth, worldHeight)
 	r.renderChatPanel(0, worldHeight, termWidth, chatPanelHeight, chatMessages)
@@ -113,6 +114,97 @@ func (r *SimpleRenderer) renderTrains(pos types.Pos, width, height int) {
 			r.screen.SetContent(screenX, screenY, ch, nil, style)
 		}
 	}
+}
+
+// renderStations draws each station's ASCII footprint on top of the
+// terrain/track underneath it. Stations aren't on the tracks themselves —
+// track tiles bordering a station's footprint are what count as "at" it
+// (see types.Station.Adjoins).
+func (r *SimpleRenderer) renderStations(camPos types.Pos, width, height int) {
+	for _, s := range r.w.Stations {
+		art := stationArt(s)
+		for row, line := range art {
+			// art[0] is the top of the building (the roof); increasing
+			// world Y is north/"up" on screen (see renderRegion's Y-flip),
+			// so the roof belongs at the highest world Y in the footprint.
+			worldY := s.Pos.Y + (s.Height - 1 - row)
+			screenY := height - 1 - (worldY - camPos.Y)
+			if screenY < 0 || screenY >= height {
+				continue
+			}
+			for col, cell := range line {
+				if cell == nil {
+					continue // transparent: leave the terrain/track showing
+				}
+				worldX := s.Pos.X + col
+				screenX := worldX - camPos.X
+				if screenX < 0 || screenX >= width {
+					continue
+				}
+				style := tcell.StyleDefault.Foreground(cell.fg).Background(cell.bg)
+				r.screen.SetContent(screenX, screenY, cell.ch, nil, style)
+			}
+		}
+	}
+}
+
+type stationCell struct {
+	ch     rune
+	fg, bg tcell.Color
+}
+
+var (
+	stationFillBG   = tcell.ColorTan
+	stationRoofBG   = tcell.ColorFireBrick
+	stationBorderFG = tcell.ColorBlack
+)
+
+func filled(ch rune, fg, bg tcell.Color) *stationCell {
+	return &stationCell{ch: ch, fg: fg, bg: bg}
+}
+
+func painted(bg tcell.Color) *stationCell {
+	return &stationCell{ch: ' ', fg: bg, bg: bg}
+}
+
+// stationArt draws a station as a plain solid rectangle: a ┌─┐/└─┘ border
+// (matching the box-drawing style used elsewhere for panels), a roof-colored
+// band on the top interior row, and a single flat fill color below that.
+// Deliberately minimal — just enough to read as a distinct structure next
+// to the track, without competing for attention.
+func stationArt(s *types.Station) [][]*stationCell {
+	art := make([][]*stationCell, s.Height)
+	for row := range art {
+		art[row] = make([]*stationCell, s.Width)
+		for col := range art[row] {
+			if ch, ok := stationBorderRune(s, row, col); ok {
+				art[row][col] = filled(ch, stationBorderFG, stationFillBG)
+			} else if row == 1 && s.Height > 2 {
+				art[row][col] = painted(stationRoofBG)
+			} else {
+				art[row][col] = painted(stationFillBG)
+			}
+		}
+	}
+	return art
+}
+
+func stationBorderRune(s *types.Station, row, col int) (rune, bool) {
+	switch {
+	case row == 0 && col == 0:
+		return '┌', true
+	case row == 0 && col == s.Width-1:
+		return '┐', true
+	case row == s.Height-1 && col == 0:
+		return '└', true
+	case row == s.Height-1 && col == s.Width-1:
+		return '┘', true
+	case row == 0 || row == s.Height-1:
+		return '─', true
+	case col == 0 || col == s.Width-1:
+		return '│', true
+	}
+	return 0, false
 }
 
 var (

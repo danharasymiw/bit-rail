@@ -25,6 +25,9 @@ func WriteTrain(w io.Writer, v *trains.Train) error {
 	if err := binaryWrite(w, int32(v.Acceleration)); err != nil {
 		return fmt.Errorf("error writing Acceleration: %v", err)
 	}
+	if err := WritePos(w, &v.Destination); err != nil {
+		return fmt.Errorf("error writing Destination: %v", err)
+	}
 	if len(v.Cars) > 65535 {
 		return fmt.Errorf("Cars slice too long: %d", len(v.Cars))
 	}
@@ -62,6 +65,11 @@ func ReadTrain(r io.Reader) (*trains.Train, error) {
 		return nil, fmt.Errorf("error reading Acceleration: %v", err)
 	}
 	v.Acceleration = int(AccelerationVal)
+	DestinationVal, err := ReadPos(r)
+	if err != nil {
+		return nil, fmt.Errorf("error reading Destination: %v", err)
+	}
+	v.Destination = *DestinationVal
 	var CarsLen uint16
 	if err := binaryRead(r, &CarsLen); err != nil {
 		return nil, fmt.Errorf("error reading Cars length: %v", err)

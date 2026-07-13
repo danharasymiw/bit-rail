@@ -83,5 +83,10 @@ func IntersectingLoopsTestWorld() *world.World {
 	w.AddTrack(types.Pos{X: 347, Y: 275}, &types.Track{Direction: types.DirEastWest, SignalDir: types.DirEast})
 	w.AddTrack(types.Pos{X: 353, Y: 275}, &types.Track{Direction: types.DirEastWest, SignalDir: types.DirWest})
 
+	// Station beside the bottom loop's east-west track (y=290): any track
+	// tile touching the footprint's edge (x=309..322 at y=290) counts as
+	// "at" this station.
+	w.AddStation(&types.Station{Pos: types.Pos{X: 310, Y: 285}, Width: 12, Height: 5, Name: "Freight Depot"})
+
 	return w
 }

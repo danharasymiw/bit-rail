@@ -9,30 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestHasSignalBoundary tests the unexported hasSignalBoundary function.
-func TestHasSignalBoundary(t *testing.T) {
+// TestIsSignalBoundary tests the unexported isSignalBoundary function.
+func TestIsSignalBoundary(t *testing.T) {
 	t.Run("no signals on either track returns false", func(t *testing.T) {
 		curr := &types.Track{Direction: types.DirEastWest}
 		neigh := &types.Track{Direction: types.DirEastWest}
-		assert.False(t, hasSignalBoundary(curr, neigh, types.DirEast))
+		assert.False(t, isSignalBoundary(curr, neigh, types.DirEast))
 	})
 
 	t.Run("neighbour has signal facing back toward curr returns true", func(t *testing.T) {
 		// Travelling East (dir=DirEast). Neighbour has SignalDir=DirEast,
 		// meaning the signal faces East — i.e. it checks trains coming from the West,
 		// which is the direction we are travelling from.
-		// hasSignalBoundary: neighbour.HasSignal() && neighbour.IsSignalDir(dir=DirEast) → true
+		// isSignalBoundary: neighbour.HasSignal() && neighbour.IsSignalDir(dir=DirEast) → true
 		curr := &types.Track{Direction: types.DirEastWest}
 		neigh := &types.Track{Direction: types.DirEastWest, SignalDir: types.DirEast}
-		assert.True(t, hasSignalBoundary(curr, neigh, types.DirEast))
+		assert.True(t, isSignalBoundary(curr, neigh, types.DirEast))
 	})
 
 	t.Run("curr has signal facing toward neighbour returns true", func(t *testing.T) {
 		// Travelling East (dir=DirEast). curr has SignalDir=DirWest (OppositeDir(DirEast)).
-		// hasSignalBoundary: curr.HasSignal() && curr.IsSignalDir(OppositeDir(DirEast)=DirWest) → true
+		// isSignalBoundary: curr.HasSignal() && curr.IsSignalDir(OppositeDir(DirEast)=DirWest) → true
 		curr := &types.Track{Direction: types.DirEastWest, SignalDir: types.DirWest}
 		neigh := &types.Track{Direction: types.DirEastWest}
-		assert.True(t, hasSignalBoundary(curr, neigh, types.DirEast))
+		assert.True(t, isSignalBoundary(curr, neigh, types.DirEast))
 	})
 
 	t.Run("signal on neighbour facing a different direction returns false", func(t *testing.T) {
@@ -41,7 +41,14 @@ func TestHasSignalBoundary(t *testing.T) {
 		// curr has no signal → false
 		curr := &types.Track{Direction: types.DirEastWest}
 		neigh := &types.Track{Direction: types.DirEastWest, SignalDir: types.DirNorth}
-		assert.False(t, hasSignalBoundary(curr, neigh, types.DirEast))
+		assert.False(t, isSignalBoundary(curr, neigh, types.DirEast))
+	})
+
+	t.Run("junction alone is not a boundary", func(t *testing.T) {
+		// Junctions do NOT split blocks — see TestRebuildAll_JunctionDoesNotSplitBlock.
+		curr := &types.Track{Direction: types.DirEastWest}
+		neigh := &types.Track{Direction: types.DirFourWay}
+		assert.False(t, isSignalBoundary(curr, neigh, types.DirEast))
 	})
 }
 
@@ -84,7 +91,7 @@ func TestRebuildAll_LinearTrack(t *testing.T) {
 // TestRebuildAll_SignalSplits verifies that a signal at (1,0) with SignalDir=DirEast
 // creates a boundary so that track (0,0) is in a different block from (1,0) and (2,0).
 //
-// Signal logic (hasSignalBoundary):
+// Signal logic (isSignalBoundary):
 //   When BFS travels East from (0,0) to (1,0):
 //     neighbour(1,0).HasSignal() && neighbour(1,0).IsSignalDir(DirEast) → true → boundary
 //   So (0,0) and (1,0) are in separate blocks.
@@ -123,6 +130,42 @@ func TestRebuildAll_SignalSplits(t *testing.T) {
 	// (1,0) and (2,0) are on the unguarded side of the signal — same block.
 	assert.Equal(t, tr1.Block.ID, tr2.Block.ID,
 		"tracks (1,0) and (2,0) should share the same block (no boundary between them)")
+}
+
+// TestRebuildAll_JunctionDoesNotSplitBlock verifies that a 4-way junction
+// tile is NOT a block boundary: all four arms plus the junction itself
+// share one block, exactly as if the junction weren't there. This matters
+// for diamond crossings guarded by signals on each approach — the whole
+// crossing must be one shared block so perpendicular trains see each
+// other's occupancy. (Junctions ARE decision points for the separate
+// routing graph in the routing package — see types.Track.IsNode — but that
+// is independent of block/collision topology.)
+func TestRebuildAll_JunctionDoesNotSplitBlock(t *testing.T) {
+	w := newTestWorld()
+
+	junctionPos := types.Pos{X: 2, Y: 2}
+	w.AddTrack(junctionPos, &types.Track{Direction: types.DirFourWay})
+
+	north := types.Pos{X: 2, Y: 3}
+	south := types.Pos{X: 2, Y: 1}
+	east := types.Pos{X: 3, Y: 2}
+	west := types.Pos{X: 1, Y: 2}
+	w.AddTrack(north, &types.Track{Direction: types.DirSouth})
+	w.AddTrack(south, &types.Track{Direction: types.DirNorth})
+	w.AddTrack(east, &types.Track{Direction: types.DirWest})
+	w.AddTrack(west, &types.Track{Direction: types.DirEast})
+
+	bm := newBlockManager(w)
+	bm.RebuildAll()
+
+	junctionBlock := w.Tracks[junctionPos].Block
+	require.NotNil(t, junctionBlock, "junction tile should have a block")
+
+	for name, pos := range map[string]types.Pos{"north": north, "south": south, "east": east, "west": west} {
+		tr := w.Tracks[pos]
+		require.NotNil(t, tr.Block, "%s arm should have a block", name)
+		assert.Same(t, junctionBlock, tr.Block, "%s arm should share the junction's block", name)
+	}
 }
 
 // TestMarkDirtyProcessDirty verifies that a newly added track gets a block

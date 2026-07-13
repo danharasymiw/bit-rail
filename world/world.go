@@ -7,12 +7,22 @@ import (
 
 const ChunkSize = 64
 
+// Router answers "which direction should I go" queries for a train sitting
+// at a routing node (junction) heading toward dest. Defined here (rather
+// than depending on the routing package directly) to avoid an import cycle,
+// since routing.Manager itself depends on *World.
+type Router interface {
+	NextHop(pos types.Pos, dest types.Pos) (types.Dir, bool)
+}
+
 type World struct {
 	Width, Height int
 	Tiles         [][]*types.Tile
 	Tracks        map[types.Pos]*types.Track
 	Trains        []*trains.Train
 	Occupied      map[types.Pos]bool
+	Router        Router
+	Stations      []*types.Station
 }
 
 func New(width, height int) *World {
@@ -97,9 +107,24 @@ func (w *World) AddTrack(pos types.Pos, track *types.Track) {
 	w.Tracks[pos] = track
 }
 
+// NextHop returns the direction a train sitting at pos should take to make
+// progress toward dest. Delegates to the World's Router (set by the engine).
+func (w *World) NextHop(pos, dest types.Pos) (types.Dir, bool) {
+	return w.Router.NextHop(pos, dest)
+}
+
 func (w *World) AddTrain(t *trains.Train) {
 	w.Trains = append(w.Trains, t)
 	for _, c := range t.Cars {
 		w.SetOccupied(types.Pos{X: c.X, Y: c.Y})
 	}
+}
+
+func (w *World) AddStation(s *types.Station) {
+	w.Stations = append(w.Stations, s)
+}
+
+// StationAt returns the station (if any) that pos is adjacent to.
+func (w *World) StationAt(pos types.Pos) *types.Station {
+	return types.StationAt(pos, w.Stations)
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/danharasymiw/bit-rail/trains"
+	"github.com/danharasymiw/bit-rail/types"
 )
 
 func WriteInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
@@ -57,6 +58,17 @@ func WriteInitialLoadMessage(w io.Writer, v *InitialLoadMessage) error {
 	for _, elem := range v.Tracks {
 		if err := WriteTrackUpdate(w, elem); err != nil {
 			return fmt.Errorf("error writing Tracks element: %v", err)
+		}
+	}
+	if len(v.Stations) > 65535 {
+		return fmt.Errorf("Stations slice too long: %d", len(v.Stations))
+	}
+	if err := binaryWrite(w, uint16(len(v.Stations))); err != nil {
+		return fmt.Errorf("error writing Stations length: %v", err)
+	}
+	for _, elem := range v.Stations {
+		if err := WriteStation(w, elem); err != nil {
+			return fmt.Errorf("error writing Stations element: %v", err)
 		}
 	}
 	return nil
@@ -114,6 +126,18 @@ func ReadInitialLoadMessage(r io.Reader) (*InitialLoadMessage, error) {
 			return nil, fmt.Errorf("error reading Tracks element: %v", err)
 		}
 		v.Tracks[i] = elem
+	}
+	var StationsLen uint16
+	if err := binaryRead(r, &StationsLen); err != nil {
+		return nil, fmt.Errorf("error reading Stations length: %v", err)
+	}
+	v.Stations = make([]*types.Station, StationsLen)
+	for i := range v.Stations {
+		elem, err := ReadStation(r)
+		if err != nil {
+			return nil, fmt.Errorf("error reading Stations element: %v", err)
+		}
+		v.Stations[i] = elem
 	}
 	return v, nil
 }

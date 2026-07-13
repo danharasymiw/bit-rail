@@ -19,6 +19,7 @@ package message
 //go:generate go run ../cmd/generator/main.go -type=Tile -dir=../types -output=tile_gen.go
 //go:generate go run ../cmd/generator/main.go -type=Track -dir=../types -output=track_gen.go
 //go:generate go run ../cmd/generator/main.go -type=Block -dir=../types -output=block_gen.go
+//go:generate go run ../cmd/generator/main.go -type=Station -dir=../types -output=station_gen.go
 
 // trains package
 //go:generate go run ../cmd/generator/main.go -type=Train -dir=../trains -output=train_gen.go

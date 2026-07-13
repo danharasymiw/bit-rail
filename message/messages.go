@@ -53,6 +53,7 @@ type InitialLoadMessage struct {
 	Chunks        []*world.Chunk
 	Trains        []*trains.Train
 	Tracks        []*TrackUpdate
+	Stations      []*types.Station
 }
 
 type WorldUpdateMessage struct {

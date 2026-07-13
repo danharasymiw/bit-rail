@@ -15,6 +15,8 @@ type mockWorld struct {
 	tiles    map[types.Pos]*types.Tile
 	tracks   map[types.Pos]*types.Track
 	occupied map[types.Pos]bool
+	nextHop  map[types.Pos]types.Dir // keyed by pos; presence means ok=true
+	stations []*types.Station
 }
 
 func newMockWorld() *mockWorld {
@@ -22,6 +24,7 @@ func newMockWorld() *mockWorld {
 		tiles:    make(map[types.Pos]*types.Tile),
 		tracks:   make(map[types.Pos]*types.Track),
 		occupied: make(map[types.Pos]bool),
+		nextHop:  make(map[types.Pos]types.Dir),
 	}
 }
 
@@ -43,6 +46,15 @@ func (m *mockWorld) SetOccupied(pos types.Pos) {
 
 func (m *mockWorld) UnsetOccupied(pos types.Pos) {
 	m.occupied[pos] = false
+}
+
+func (m *mockWorld) NextHop(pos, dest types.Pos) (types.Dir, bool) {
+	dir, ok := m.nextHop[pos]
+	return dir, ok
+}
+
+func (m *mockWorld) StationAt(pos types.Pos) *types.Station {
+	return types.StationAt(pos, m.stations)
 }
 
 // --- firstCar / lastCar ---
@@ -370,4 +382,119 @@ func TestTick_SignalBlocks(t *testing.T) {
 	assert.True(t, train.IsMoving, "IsMoving should remain true when blocked by signal")
 	// Block ownership should be unchanged.
 	assert.Equal(t, otherID, blockedBlock.OccupiedBy, "block should still be owned by other train")
+}
+
+// --- Destination-aware junction routing + station arrival ---
+
+func TestTick_JunctionUsesRoutingWhenDestinationSet(t *testing.T) {
+	w := newMockWorld()
+
+	currPos := types.Pos{X: 5, Y: 5}
+	junctionPos := types.Pos{X: 6, Y: 5}
+	dest := types.Pos{X: 100, Y: 100}
+
+	w.tracks[currPos] = &types.Track{Direction: types.DirEastWest, Block: types.NewBlock()}
+	// T-junction (North|South|West, no through-East): a train arriving from
+	// the West moving East cannot continue straight, so it must branch
+	// North or South. Without routing, firstNonBacktrackDirection would
+	// pick North (first checked direction that isn't the backtrack West).
+	w.tracks[junctionPos] = &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirWest, Block: types.NewBlock()}
+	w.occupied[currPos] = true
+	// Routing says: from the junction, go South to reach dest.
+	w.nextHop[junctionPos] = types.DirSouth
+
+	train := &Train{
+		ID:          uuid.New(),
+		IsMoving:    true,
+		Destination: dest,
+		Cars: []*TrainCar{
+			{X: 5, Y: 5, Direction: types.DirEast},
+		},
+	}
+
+	train.Tick(w)
+
+	assert.Equal(t, types.Dir(types.DirSouth), train.Cars[0].Direction,
+		"should take the routed direction instead of the arbitrary first choice")
+}
+
+func TestTick_JunctionFallsBackWhenNoRoute(t *testing.T) {
+	w := newMockWorld()
+
+	currPos := types.Pos{X: 5, Y: 5}
+	junctionPos := types.Pos{X: 6, Y: 5}
+	dest := types.Pos{X: 100, Y: 100}
+
+	w.tracks[currPos] = &types.Track{Direction: types.DirEastWest, Block: types.NewBlock()}
+	w.tracks[junctionPos] = &types.Track{Direction: types.DirNorth | types.DirSouth | types.DirWest, Block: types.NewBlock()}
+	w.occupied[currPos] = true
+	// No entry in w.nextHop for junctionPos -> NextHop returns ok=false.
+
+	train := &Train{
+		ID:          uuid.New(),
+		IsMoving:    true,
+		Destination: dest,
+		Cars: []*TrainCar{
+			{X: 5, Y: 5, Direction: types.DirEast},
+		},
+	}
+
+	train.Tick(w)
+
+	assert.Equal(t, types.Dir(types.DirNorth), train.Cars[0].Direction,
+		"should fall back to the first non-backtracking direction when routing has no answer")
+}
+
+func TestTick_ArrivesAtDestinationAndStops(t *testing.T) {
+	w := newMockWorld()
+
+	currPos := types.Pos{X: 5, Y: 5}
+	stationPos := types.Pos{X: 6, Y: 5}
+
+	w.tracks[currPos] = &types.Track{Direction: types.DirEastWest, Block: types.NewBlock()}
+	// Through-station (connects both East and West) — not a dead end.
+	w.tracks[stationPos] = &types.Track{Direction: types.DirEastWest, Block: types.NewBlock()}
+	w.occupied[currPos] = true
+
+	train := &Train{
+		ID:          uuid.New(),
+		IsMoving:    true,
+		Destination: stationPos,
+		Cars: []*TrainCar{
+			{X: 5, Y: 5, Direction: types.DirEast},
+		},
+	}
+
+	train.Tick(w)
+
+	assert.Equal(t, 6, train.Cars[0].X, "train should have moved onto the station tile")
+	assert.False(t, train.IsMoving, "train should stop upon arriving at its destination")
+	assert.False(t, train.IsReversing, "through-station arrival should not reverse the train")
+}
+
+func TestTick_ArrivesAtDeadEndStationAndReverses(t *testing.T) {
+	w := newMockWorld()
+
+	currPos := types.Pos{X: 5, Y: 5}
+	stationPos := types.Pos{X: 6, Y: 5}
+
+	w.tracks[currPos] = &types.Track{Direction: types.DirEastWest, Block: types.NewBlock()}
+	// Dead-end station: only connects back West (the direction we arrived from).
+	w.tracks[stationPos] = &types.Track{Direction: types.DirWest, Block: types.NewBlock()}
+	w.occupied[currPos] = true
+
+	train := &Train{
+		ID:          uuid.New(),
+		IsMoving:    true,
+		Destination: stationPos,
+		Cars: []*TrainCar{
+			{X: 5, Y: 5, Direction: types.DirEast},
+		},
+	}
+
+	train.Tick(w)
+
+	assert.False(t, train.IsMoving, "train should stop upon arriving at its destination")
+	assert.True(t, train.IsReversing, "dead-end arrival should reverse the train")
+	assert.Equal(t, types.Dir(types.DirWest), train.Cars[0].Direction, "car direction should flip on reverse")
 }

@@ -87,7 +87,7 @@ func (bm *blockManager) RebuildAll() {
 					continue
 				}
 
-				if hasSignalBoundary(curr.tr, neigh, d) {
+				if isSignalBoundary(curr.tr, neigh, d) {
 					continue
 				}
 
@@ -109,16 +109,13 @@ func (bm *blockManager) RebuildAll() {
 	}
 }
 
-func hasSignalBoundary(curr, neighbour *types.Track, dir types.Dir) bool {
-	if neighbour.HasSignal() && neighbour.IsSignalDir(dir) {
-		return true
-	}
-
-	if curr.HasSignal() && curr.IsSignalDir(types.OppositeDir(dir)) {
-		return true
-	}
-
-	return false
+// isSignalBoundary reports whether the BFS should stop crossing from curr to
+// neighbour in dir — i.e. whether a signal faces the direction of travel.
+// Blocks are contiguous sections of track between signals; junctions and
+// stations do NOT split a block (see types.IsNode for the separate,
+// broader notion of a routing decision point used by the routing package).
+func isSignalBoundary(curr, neighbour *types.Track, dir types.Dir) bool {
+	return types.IsSignalBoundary(curr, neighbour, dir)
 }
 
 // rebuildBlocksAround performs a localized rebuild:
@@ -228,7 +225,7 @@ func (bm *blockManager) rebuildBlocksAround(changed []types.Pos) {
 					continue
 				}
 
-				if hasSignalBoundary(curr.tr, neigh, d) {
+				if isSignalBoundary(curr.tr, neigh, d) {
 					continue
 				}
 

@@ -165,6 +165,7 @@ func (c *Client) handleInitialLoad(msg *message.InitialLoadMessage) error {
 		c.w.AddTrack(trackUpdate.Pos, &trackUpdate.Track)
 	}
 	deduplicateBlocks(c.w.Tracks)
+	c.w.Stations = msg.Stations
 
 	// Ensure we have full chunk buffer (in case initial load didn't include all)
 	c.loadChunksAroundCamera()

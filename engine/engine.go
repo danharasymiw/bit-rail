@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/danharasymiw/bit-rail/message"
+	"github.com/danharasymiw/bit-rail/routing"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
 	"github.com/sirupsen/logrus"
@@ -19,6 +20,7 @@ type Engine struct {
 	running bool
 	nm      *networkManager
 	bm      *blockManager
+	rm      *routing.Manager
 
 	// TODO: do we really want this to be a message type?
 	tilesUpdated  []*message.TileUpdate
@@ -31,7 +33,9 @@ func New(w *world.World, tickDur time.Duration, addr string) *Engine {
 		tickDur: tickDur,
 		nm:      newNetworkManager(addr),
 		bm:      newBlockManager(w),
+		rm:      routing.NewManager(),
 	}
+	w.Router = eng.rm
 
 	return eng
 }
@@ -41,6 +45,7 @@ func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
 	// All tracks should already belong to a block, but make sure they do on startup
 	// Also allows us to test block manager in test worlds
 	e.bm.RebuildAll()
+	e.rm.Rebuild(e.w)
 
 	go e.nm.startServer(readyCh)
 
@@ -64,7 +69,11 @@ func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
 }
 
 func (e *Engine) tick() {
+	blocksChanged := len(e.bm.dirty) > 0
 	e.bm.ProcessDirty()
+	if blocksChanged {
+		e.rm.Rebuild(e.w)
+	}
 
 	prevOccupancy := make(map[types.Pos]uuid.UUID)
 	for pos, track := range e.w.Tracks {
@@ -149,6 +158,7 @@ func (e *Engine) handleLoginMessage(playerMsg *playerMessage) {
 		Chunks:    e.getChunksInRegion(camPos),
 		Trains:    e.w.Trains,                                // TODO: get trains in region
 		Tracks:    message.TrackMapToTrackUpdate(e.w.Tracks), // TODO: get tracks in region
+		Stations:  e.w.Stations,
 	}
 	entry.Debugf("Sending initial load message to response channel (chunks: %d, trains: %d, tracks: %d)",
 		len(initialLoadMessage.Chunks), len(initialLoadMessage.Trains), len(initialLoadMessage.Tracks))
