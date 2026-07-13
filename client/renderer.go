@@ -3,7 +3,6 @@ package client
 import (
 	"github.com/gdamore/tcell"
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 
 	"github.com/danharasymiw/bit-rail/trains"
 	"github.com/danharasymiw/bit-rail/types"
@@ -182,12 +181,9 @@ func (r *SimpleRenderer) getTileChar(pos types.Pos, t *types.Tile) (rune, tcell.
 				signalChar = '<'
 			}
 
-			// Determine signal color based on whether it's clear
-			// TODO: This doesn't work because the engine doesn't tell the client that the blocks are occupied or not
 			if track.Block.OccupiedBy == uuid.Nil {
 				signalColor = tcell.ColorGreen
 			} else {
-				logrus.Debug("setting color to red")
 				signalColor = tcell.ColorRed
 			}
 

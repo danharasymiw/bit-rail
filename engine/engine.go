@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/danharasymiw/bit-rail/message"
 	"github.com/danharasymiw/bit-rail/types"
 	"github.com/danharasymiw/bit-rail/world"
@@ -65,8 +66,22 @@ func (e *Engine) Run(quitCh <-chan struct{}, readyCh chan<- struct{}) {
 func (e *Engine) tick() {
 	e.bm.ProcessDirty()
 
+	prevOccupancy := make(map[types.Pos]uuid.UUID)
+	for pos, track := range e.w.Tracks {
+		if track.HasSignal() && track.Block != nil {
+			prevOccupancy[pos] = track.Block.OccupiedBy
+		}
+	}
+
 	for _, t := range e.w.Trains {
 		t.Tick(e.w)
+	}
+
+	for pos, prev := range prevOccupancy {
+		track := e.w.Tracks[pos]
+		if track.Block != nil && track.Block.OccupiedBy != prev {
+			e.tracksUpdated = append(e.tracksUpdated, &message.TrackUpdate{Pos: pos, Track: *track})
+		}
 	}
 
 	e.nm.broadcastCh <- &outgoingMessage{

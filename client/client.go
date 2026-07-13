@@ -193,7 +193,12 @@ func (c *Client) handleIncomingMessage(incoming *incomingMessage) {
 			c.w.Tiles[tu.Pos.Y][tu.Pos.X] = &tu.Tile
 		}
 		for _, tu := range incoming.worldUpdateMessage.TracksUpdated {
-			c.w.Tracks[tu.Pos] = &tu.Track
+			newTrack := tu.Track
+			if existing, ok := c.w.Tracks[tu.Pos]; ok && existing.Block != nil && newTrack.Block != nil && existing.Block.ID == newTrack.Block.ID {
+				existing.Block.OccupiedBy = newTrack.Block.OccupiedBy
+				newTrack.Block = existing.Block
+			}
+			c.w.Tracks[tu.Pos] = &newTrack
 		}
 		if len(incoming.worldUpdateMessage.TracksUpdated) > 0 {
 			deduplicateBlocks(c.w.Tracks)
